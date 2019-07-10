@@ -11,5 +11,7 @@ These were generated after training the model for 500 epochs, each epoch with 50
 
 The network has a shape: [1, 32, 1] where the hidden layer is fully connected
 
-I've tried different, fully connected networks such as [1, 128, 1] and [1, 16, 16, 1], whithout much more success
+I've tried different, fully connected networks such as [1, 128, 1] and [1, 32, 32, 8, 1], whithout much success.
+
+[1, 128, 1] shape network seemed to only fit towards the left and right ends of the function, but couldn't "break" away from a highly correlate output
 

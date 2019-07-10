@@ -74,7 +74,7 @@ if __name__ == "__main__":
     expected = 0.5*(1.0+np.sin(2*np.pi*x))
     fig, ax = plt.subplots()
     reference_plot = ax.plot(x,expected, label="Expected Values")
-    test_plot, = ax.plot(x,expected, label="Network Output")
+    test_plot = ax.scatter(x,expected, label="Network Output", c="r")
     ax.legend()
 
     for i in range(num_epochs):
@@ -83,15 +83,29 @@ if __name__ == "__main__":
         
         errors.append(error)
         actual = []
-       
-        test_plot.set_xdata(test_inputs)
-        test_plot.set_ydata(test_outputs)
+        
+        # update data with newest test run
+        test_plot.set_offsets([ list(i) for i in  list(zip(test_inputs, test_outputs))])
         fig.canvas.draw()
         fig.canvas.flush_events()
+
+        if i > 0 and i % 100 == 0:
+            fig.savefig("./epoch_%ix500.png"%i)
     
     # stop interactive mode
     plt.ioff()
     
+    # generate a graph over the input space to visualize the output
+    # of the network
+    #outputs = []
+    #for i in x:
+    #    network.forward_pass([i])
+    #    outputs.append(network.output_layer[0].output)
+    
+    #fig0, ax0 = plt.subplots()
+    #reference_plot = ax0.plot(x, expected, label="Expected Values")
+    #test_plot = ax0.plt(x, outputs, label="Network Output")
+
     # error from each epoch
     print(errors)
 
@@ -101,6 +115,8 @@ if __name__ == "__main__":
     ax1.set_xlabel("Training Epoch")
     ax1.set_ylabel("Sum Error")
     time.sleep(0.1)
+    
+    fig1.savefig("./loss_function_500x500.png")
 
     plt.show()
-
+    

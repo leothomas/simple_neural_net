@@ -66,29 +66,27 @@ class Neuron:
         self.__activation = value
 
     def transfer(self, x):
-        # basic sigmoid 
+        # basic sigmoid
         return 1.0 / (1.0 + np.exp(-x))
-      
 
     def transfer_derivative(self, x):
         # basic sigmoid
-        return x * (1.0-x)
-
-   
+        return x * (1.0 - x)
 
     def calculate_error(self, expected=None):
-        
+
         if expected:
             # I'm unsure of this error, calculated on the output
-            # neuron. Many sources calculate the errror as a square 
-            # of the difference  o the expected and actual values, 
+            # neuron. Many sources calculate the errror as a square
+            # of the difference  o the expected and actual values,
             # which makes sense to penalize large differences
             # It seems however that squaring this value also makes it
             # positive in all cases, which only ever increases the
             # weights and biases, which leads to completely inaccurate
             # results
-            self.__error = (expected - self.output) * self.transfer_derivative(self.output)
-            
+            self.__error = expected - self.output * \
+                self.transfer_derivative(self.output)
+
         else:
 
             self.__error = np.sum([
@@ -100,10 +98,10 @@ class Neuron:
 
     def update_weights(self):
         for synapse in self.synapses_in:
-        
-            synapse.weight += (self.__learning_rate *
-                               self.delta * synapse.neuron_in.output)           
-        
+
+            synapse.weight += (self.__learning_rate
+                               * self.delta * synapse.neuron_in.output)
+
         self.bias += self.delta * self.__learning_rate
 
     @property
@@ -116,7 +114,7 @@ class Neuron:
 
     def activate(self, inputs=None):
         if inputs is None:
-            
+
             inputs = [synapse.neuron_in.output for synapse in self.__synapses_in]
             weights_in = [synapse.weight for synapse in self.__synapses_in]
 
@@ -129,11 +127,10 @@ class Neuron:
                 raise ValueError("Neuron input should be a single element")
             if isinstance(inputs, list):
                 inputs = inputs[0]
-           # set the weight as 1 to transfer the full input to the 
+           # set the weight as 1 to transfer the full input to the
            # layer's output
             weights_in = 1
 
-       
         self.activation = np.dot(weights_in, inputs) + self.__bias
 
         self.output = self.transfer(self.activation)
@@ -180,7 +177,7 @@ class Network:
                     break
 
                 # connect neuron to each neuron of the next layer
-                for target_neuron in self.__layers[layer_index+1]:
+                for target_neuron in self.__layers[layer_index + 1]:
 
                     synapse = Synapse(
                         neuron_in=neuron,
@@ -203,7 +200,7 @@ class Network:
     @learning_rate.setter
     def learning_rate(self, learning_rate):
         for layer in self.__layers:
-            for neuron in layer: 
+            for neuron in layer:
                 neuron.learning_rate = learning_rate
 
     @property
@@ -226,7 +223,6 @@ class Network:
                     neuron.activate(network_input[neuron_index])
                 else:
                     neuron.activate()
-
 
     def backwards_pass(self, expected_output):
         if len(expected_output) != len(self.__layers[-1]):

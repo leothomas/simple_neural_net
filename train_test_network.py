@@ -6,7 +6,7 @@ from simple_neural_net import Network
 import matplotlib.pyplot as plt
 
 
-def train_test_ln(network, num_passes=500, ratio=0.1):
+def train_test_sin(network, num_passes=500, ratio=0.1):
     bar = Bar('Training', max=num_passes)
 
     # training step

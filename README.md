@@ -5,13 +5,8 @@ Many sources I've found online either gloss over gradient descent or describe it
 
 I've trained this network against the sine function, and it seems the ends of the sine function are not "clamping down" correctly, and I'm having trouble understanding why this is the case. 
 
-The images included in are an example of a testing pass through the network with ~125 test points, randomly distributed from 0 to 1, and a graph of the loss function. 
+Images of tests performed on ~125 randomly selected inputs after every 100 epochs, are included for each network. Each folder name is prepended with the shape of the network that was used. 
 
-These were generated after training the model for 500 epochs, each epoch with 500 forwards/backwards passes, and a learning rate of 0.2.
+All networks were trained with 500 epochs of 500 forward/backwards passes and a learning rate of 0.2
 
-The network has a shape: [1, 32, 1] where the hidden layer is fully connected
-
-I've tried different, fully connected networks such as [1, 128, 1] and [1, 32, 32, 8, 1], whithout much success.
-
-[1, 128, 1] shape network seemed to only fit towards the left and right ends of the function, but couldn't "break" away from a highly correlate output
-
+The [1, 128, 1] shape network was trained to fit to wavelenghts of the sin curve. It seems that it only move such as to reduce the error towards the left and right ends of the function, but couldn't "break" away from a very strongly linear shape

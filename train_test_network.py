@@ -6,27 +6,27 @@ from simple_neural_net import Network
 import matplotlib.pyplot as plt
 
 
-def train_test_SIN(network, num_passes=500, ratio=0.1):
+def train_test_sin(network, num_passes=500, ratio=0.1):
     bar = Bar('Training', max=num_passes)
-    
+
     # training step
     for _ in range(num_passes):
         # generate a random value within the input range
         x = np.random.uniform(0, 1.0)
-        
-        # pass through the network (sine function only takes one input)
+
+        # pass through the network (lne function only takes one input)
         network.forward_pass([x])
-        
+
         # calculate the expected output value
-        expected = (1.0 + np.sin(2*2*np.pi*x))*0.5
-        
+        expected = (1.0 + np.sin(2*np.pi * x)) * 0.5
+
         # backpropgate the expected value through the network
         network.backwards_pass([expected])
-        
+
         bar.next()
     bar.finish()
 
-    # testing step 
+    # testing step
 
     error = 0.0
     inputs = []
@@ -35,77 +35,78 @@ def train_test_SIN(network, num_passes=500, ratio=0.1):
     for _ in range(int(num_passes * ratio)):
         # generate random value within input range
         x = np.random.uniform(0, 1.0)
-        
+
         # pass through the network
         network.forward_pass([x])
         # store input value for testing purposes
         inputs.append(x)
         # store output value for graphing purposes
         actual_outputs.append(network.output_layer[0].output)
-        
+
         # added squared difference between the expected and the actual
         # to calculate loss function
-        error += np.sqrt((network.output_layer[0].output - 0.5*(1.0 +np.sin(2*2*np.pi*x)))**2)
-
+        error += np.sqrt((network.output_layer[0].output -
+                          0.5 * (1.0 + np.sin(2*np.pi * x)))**2)
 
     print("Error:%.4f " % error)
     # return inputs and output from testing phase for graphing
     return error, inputs, actual_outputs
 
+
 if __name__ == "__main__":
-    print ("instantiaing network")
+    print("instantiaing network")
     # TODO: Make learning rate adaptable (ie: as error goes down
     # epoch to epoch, reduce learning rate, to avoid bouncing
     # over global minima)
-    
-    # TODO: allow each neuron to have its own, customized activation 
+
+    # TODO: allow each neuron to have its own, customized activation
     # function
-    
-    network = Network(shape= [1, 16,16, 1], learning_rate=0.2)
-    
+
+    network = Network(shape=[1, 32, 1], learning_rate=0.2)
+
     errors = []
     num_epochs = 100
 
-    # prepare a graph that will update with the result of the 
+    # prepare a graph that will update with the result of the
     # testing phase after each epoch
     plt.ion()
     x = np.arange(0.0, 1.0, step=0.01)
-    expected = 0.5*(1.0+np.sin(2*2*np.pi*x))
+    expected = 0.5 * (1.0 + np.sin(2*np.pi * x))
     fig, ax = plt.subplots()
-    reference_plot = ax.plot(x,expected, label="Expected Values")
-    test_plot = ax.scatter(x,expected, label="Network Output", c="r")
+    reference_plot = ax.plot(x, expected, label="Expected Values")
+    test_plot = ax.scatter(x, expected, label="Network Output", c="r")
     ax.legend()
 
     for i in range(num_epochs):
         print("iteration %i out of %i" % ((i + 1), num_epochs))
-        error, test_inputs, test_outputs = train_test_SIN(
-            network, 
-            num_passes=500, 
-            ratio=0.25
-        )
-        # if i!= 0 and i % 100 == 0:
-        #     network.learning_rate = 0.5* network.learning_rate
+        error, test_inputs, test_outputs = train_test_ln(
+            network, num_passes=500, ratio=0.25)
+
         errors.append(error)
         actual = []
-        #test_plot.set_data(test_inputs, test_outputs)
-        test_plot.set_offsets([list(x) for x in list(zip(test_inputs, test_outputs))])
-        #test_plot.set_xdata(test_inputs)
-        #test_plot.set_ydata(test_outputs)
+
+        # update data with newest test run
+        test_plot.set_offsets([list(i)
+                               for i in list(zip(test_inputs, test_outputs))])
         fig.canvas.draw()
         fig.canvas.flush_events()
-    
-    # plot a final example covering the entire input range, for
-    # demonstration
-    test_inputs = x
-    test_outputs = []
-    for i in x:
-        network.forward_pass([x])
-        test_outputs.append(network.output_layer[0].output)
 
-    test_plot.set_offsets([list(x) for x in list(zip(test_inputs, test_outputs))])
+        if i > 0 and i % 100 == 0:
+            fig.savefig("./epoch_%ix500.png" % i)
 
     # stop interactive mode
     plt.ioff()
+
+    # generate a graph over the input space to visualize the output
+    # of the network
+    #outputs = []
+    # for i in x:
+    #    network.forward_pass([i])
+    #    outputs.append(network.output_layer[0].output)
+
+    #fig0, ax0 = plt.subplots()
+    #reference_plot = ax0.plot(x, expected, label="Expected Values")
+    #test_plot = ax0.plt(x, outputs, label="Network Output")
 
     # error from each epoch
     print(errors)
@@ -117,5 +118,6 @@ if __name__ == "__main__":
     ax1.set_ylabel("Sum Error")
     time.sleep(0.1)
 
-    plt.show()
+    fig1.savefig("./loss_function_500x500.png")
 
+    plt.show()

@@ -20,9 +20,8 @@ class Neuron:
 
         self.__synapses_in = []
         self.__synapses_out = []
-
+        #self.__activation = np.random.uniform(-1,1)
         self.__bias = np.random.uniform(-1, 1)
-        self.__activation = np.random.uniform(-1, 1)
         self.__learning_rate = learning_rate
 
     @property
@@ -32,14 +31,6 @@ class Neuron:
     @learning_rate.setter
     def learning_rate(self, learning_rate):
         self.__learning_rate = learning_rate
-
-    @property
-    def bias(self):
-        return self.__bias
-
-    @bias.setter
-    def bias(self, value):
-        self.__bias = value
 
     @property
     def synapses_in(self):
@@ -57,21 +48,49 @@ class Neuron:
     def synapses_out(self, synapses):
         self.__synapses_out = synapses
 
-    @property
-    def activation(self):
-        return self.__activation
+    def tanh(self, x):
+        return np.tanh( x)
 
-    @activation.setter
-    def activation(self, value):
-        self.__activation = value
+    def dtanh(self, x):
+        return 1. - x * x
 
-    def transfer(self, x):
+    def ReLU(self, x):
+        return x * (x > 0)
+
+    def dReLU(self, x):
+        return 1. * (x > 0)
+
+    def sigmoid(self, x):
         # basic sigmoid
         return 1.0 / (1.0 + np.exp(-x))
 
-    def transfer_derivative(self, x):
-        # basic sigmoid
+    def dsigmoid(self, x):
         return x * (1.0 - x)
+
+    def linear(self,x):
+        if x <-1 : 
+            return -1
+        if x > 1 : 
+            return 1
+        else: 
+            return x
+        
+    def dlinear(self, x):
+        if x<-1 or x>1: 
+            return 0
+        else: 
+            return 1
+
+
+    def transfer(self, x):
+        if self.__synapses_out == []:
+            return self.linear(x)
+        return self.tanh(x)
+
+    def transfer_derivative(self, x):
+        if self.__synapses_out == []:
+            return self.dlinear(x)
+        return self.dtanh(x)
 
     def calculate_error(self, expected=None):
 
@@ -84,13 +103,11 @@ class Neuron:
             # positive in all cases, which only ever increases the
             # weights and biases, which leads to completely inaccurate
             # results
-            self.__error = expected - self.output * \
-                self.transfer_derivative(self.output)
-
+            self.__error = expected - self.output
         else:
 
             self.__error = np.sum([
-                (synapse.neuron_out.delta * synapse.weight)
+                synapse.neuron_out.delta * synapse.weight
                 for synapse in self.synapses_out
             ])
 
@@ -102,7 +119,7 @@ class Neuron:
             synapse.weight += (self.__learning_rate
                                * self.delta * synapse.neuron_in.output)
 
-        self.bias += self.delta * self.__learning_rate
+        self.__bias += self.delta * self.__learning_rate
 
     @property
     def output(self):
@@ -131,9 +148,9 @@ class Neuron:
            # layer's output
             weights_in = 1
 
-        self.activation = np.dot(weights_in, inputs) + self.__bias
+        self.__activation = np.dot(weights_in, inputs) + self.__bias
 
-        self.output = self.transfer(self.activation)
+        self.output = self.transfer(self.__activation)
 
 
 class Synapse:
@@ -169,13 +186,13 @@ class Network:
 
         # fully connects each layer to the next
         for layer_index, layer in enumerate(self.__layers):
+
+            # output layer has already been connected to by the previous
+            # layer, and has no other layer to connect to
+            if layer_index == len(self.__layers) - 1:
+                break
+
             for neuron in layer:
-
-                # output layer has already been connected to by the previous
-                # layer, and has no other layer to connect to
-                if layer_index == len(self.__layers) - 1:
-                    break
-
                 # connect neuron to each neuron of the next layer
                 for target_neuron in self.__layers[layer_index + 1]:
 
@@ -216,9 +233,8 @@ class Network:
         for layer_index, layer in enumerate(self.__layers):
             for neuron_index, neuron in enumerate(layer):
 
-                # skip calculating the activation of the first layer
-                # since the input to the network directly becomes the
-                # layer's output.
+                # activate this neuron with only a single
+                # input as opposed as the previous layer's outputs
                 if layer_index == 0:
                     neuron.activate(network_input[neuron_index])
                 else:
@@ -234,7 +250,6 @@ class Network:
                 # calculate output layer error based on the acutal expected values
                 # as oppsed to the weight/error for the next connected layer
                 if layer_index == len(self.__layers) - 1:
-
                     neuron.calculate_error(expected_output[neuron_index])
                     #print ("Expected: %.4f, actual: %.4f, delta: %.4f" %(expected_output[neuron_index],neuron.output, neuron.delta))
                 else:

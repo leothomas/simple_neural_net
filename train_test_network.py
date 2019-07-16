@@ -6,7 +6,17 @@ from simple_neural_net import Network
 import matplotlib.pyplot as plt
 
 
-def train_test_sin(network, num_passes=500, ratio=0.1):
+def target_function(x):
+    # add 1.0 to make all outputs positive
+    # multiply input by 2*np.pi to force all outputs to
+    # a [0,1] range
+    # multiply by 0.5 to reduce all output from [0,2]
+    # to [0,1]
+    # return (1.0 + np.sin(2*2 * np.pi * x)) * 0.5
+    return np.sin(2*2*np.pi*x)
+
+
+def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_function):
     bar = Bar('Training', max=num_passes)
 
     # training step
@@ -18,10 +28,10 @@ def train_test_sin(network, num_passes=500, ratio=0.1):
         network.forward_pass([x])
 
         # calculate the expected output value
-        expected = (1.0 + np.sin(2*np.pi * x)) * 0.5
+        expected_output = target_function(x)
 
         # backpropgate the expected value through the network
-        network.backwards_pass([expected])
+        network.backwards_pass([expected_output])
 
         bar.next()
     bar.finish()
@@ -43,10 +53,11 @@ def train_test_sin(network, num_passes=500, ratio=0.1):
         # store output value for graphing purposes
         actual_outputs.append(network.output_layer[0].output)
 
+        expected_output = target_function(x)
+
         # added squared difference between the expected and the actual
         # to calculate loss function
-        error += np.sqrt((network.output_layer[0].output -
-                          0.5 * (1.0 + np.sin(2*np.pi * x)))**2)
+        error += np.sqrt((network.output_layer[0].output - expected_output)**2)
 
     print("Error:%.4f " % error)
     # return inputs and output from testing phase for graphing
@@ -54,7 +65,7 @@ def train_test_sin(network, num_passes=500, ratio=0.1):
 
 
 if __name__ == "__main__":
-    print("instantiaing network")
+    print("instantiating network")
     # TODO: Make learning rate adaptable (ie: as error goes down
     # epoch to epoch, reduce learning rate, to avoid bouncing
     # over global minima)
@@ -62,7 +73,7 @@ if __name__ == "__main__":
     # TODO: allow each neuron to have its own, customized activation
     # function
 
-    network = Network(shape=[1, 32, 1], learning_rate=0.2)
+    network = Network(shape=[1, 10, 25, 1], learning_rate=0.01)
 
     errors = []
     num_epochs = 100
@@ -70,17 +81,24 @@ if __name__ == "__main__":
     # prepare a graph that will update with the result of the
     # testing phase after each epoch
     plt.ion()
+
     x = np.arange(0.0, 1.0, step=0.01)
-    expected = 0.5 * (1.0 + np.sin(2*np.pi * x))
+    expected = target_function(x)
+
     fig, ax = plt.subplots()
+
     reference_plot = ax.plot(x, expected, label="Expected Values")
     test_plot = ax.scatter(x, expected, label="Network Output", c="r")
+
     ax.legend()
 
     for i in range(num_epochs):
         print("iteration %i out of %i" % ((i + 1), num_epochs))
-        error, test_inputs, test_outputs = train_test_ln(
-            network, num_passes=500, ratio=0.25)
+        error, test_inputs, test_outputs = train_test_sin(
+            network,
+            num_passes=500, ratio=0.25,
+            target_function=target_function
+        )
 
         errors.append(error)
         actual = []
@@ -92,21 +110,13 @@ if __name__ == "__main__":
         fig.canvas.flush_events()
 
         if i > 0 and i % 100 == 0:
-            fig.savefig("./epoch_%ix500.png" % i)
+            fig.savefig("./images/epoch_%ix500.png" % i)
+
+    # save last epoch
+    fig.savefig("./images/epoch_%ix500.png" % i)
 
     # stop interactive mode
     plt.ioff()
-
-    # generate a graph over the input space to visualize the output
-    # of the network
-    #outputs = []
-    # for i in x:
-    #    network.forward_pass([i])
-    #    outputs.append(network.output_layer[0].output)
-
-    #fig0, ax0 = plt.subplots()
-    #reference_plot = ax0.plot(x, expected, label="Expected Values")
-    #test_plot = ax0.plt(x, outputs, label="Network Output")
 
     # error from each epoch
     print(errors)
@@ -118,6 +128,6 @@ if __name__ == "__main__":
     ax1.set_ylabel("Sum Error")
     time.sleep(0.1)
 
-    fig1.savefig("./loss_function_500x500.png")
+    fig1.savefig("./images/loss_function_500x500.png")
 
     plt.show()

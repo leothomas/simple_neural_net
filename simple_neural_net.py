@@ -14,13 +14,15 @@ import numpy as np
 # is the number of neurons in the layer previous to N, which
 # are connected to the neurons in layer N
 
+# TODO: dynamically set activation function
+# TODO: decrease learning rate proportionally to error
+
 
 class Neuron:
     def __init__(self, learning_rate=0.1):
 
         self.__synapses_in = []
         self.__synapses_out = []
-        #self.__activation = np.random.uniform(-1,1)
         self.__bias = np.random.uniform(-1, 1)
         self.__learning_rate = learning_rate
 
@@ -49,7 +51,7 @@ class Neuron:
         self.__synapses_out = synapses
 
     def tanh(self, x):
-        return np.tanh( x)
+        return np.tanh(x)
 
     def dtanh(self, x):
         return 1. - x * x
@@ -67,20 +69,17 @@ class Neuron:
     def dsigmoid(self, x):
         return x * (1.0 - x)
 
-    def linear(self,x):
-        if x <-1 : 
+    def linear(self, x):
+        if x < -1:
             return -1
-        if x > 1 : 
+        if x > 1:
             return 1
-        else: 
-            return x
-        
-    def dlinear(self, x):
-        if x<-1 or x>1: 
-            return 0
-        else: 
-            return 1
+        return x
 
+    def dlinear(self, x):
+        if x < -1 or x > 1:
+            return 0
+        return 1
 
     def transfer(self, x):
         if self.__synapses_out == []:
@@ -129,28 +128,28 @@ class Neuron:
     def output(self, output):
         self.__output = output
 
-    def activate(self, inputs=None):
-        if inputs is None:
+    def activate(self, network_input=None):
+        if network_input is None:
 
             inputs = [synapse.neuron_in.output for synapse in self.__synapses_in]
             weights_in = [synapse.weight for synapse in self.__synapses_in]
+
+            self.__activation = np.dot(weights_in, inputs) + self.__bias
+
+            self.output = self.transfer(self.__activation)
 
         # input was directly provided to neuron, meaning this is a
         # first layer neuron. In this case, each Neuron has only one
         # input and one weight. This will be used to calculate its transfer
         # function
         else:
-            if isinstance(inputs, list) and len(inputs) != 1:
+            if isinstance(network_input, list) and len(inputs) != 1:
                 raise ValueError("Neuron input should be a single element")
-            if isinstance(inputs, list):
-                inputs = inputs[0]
-           # set the weight as 1 to transfer the full input to the
-           # layer's output
-            weights_in = 1
 
-        self.__activation = np.dot(weights_in, inputs) + self.__bias
+            if isinstance(network_input, list):
+                network_input = network_input[0]
 
-        self.output = self.transfer(self.__activation)
+            self.output = network_input
 
 
 class Synapse:
@@ -251,7 +250,7 @@ class Network:
                 # as oppsed to the weight/error for the next connected layer
                 if layer_index == len(self.__layers) - 1:
                     neuron.calculate_error(expected_output[neuron_index])
-                    #print ("Expected: %.4f, actual: %.4f, delta: %.4f" %(expected_output[neuron_index],neuron.output, neuron.delta))
+                    # print ("Expected: %.4f, actual: %.4f, delta: %.4f" %(expected_output[neuron_index],neuron.output, neuron.delta))
                 else:
                     neuron.calculate_error()
                 neuron.update_weights()

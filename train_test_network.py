@@ -13,7 +13,10 @@ def target_function(x):
     # multiply by 0.5 to reduce all output from [0,2]
     # to [0,1]
     # return (1.0 + np.sin(2*2 * np.pi * x)) * 0.5
-    return np.sin(2*2*np.pi*x)
+
+    # return np.sin(2 * 2 * np.pi * x)
+    # return np.cos(2 * np.pi * x)
+    return - (x)**2 + 1
 
 
 def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_function):
@@ -76,7 +79,7 @@ if __name__ == "__main__":
     network = Network(shape=[1, 10, 25, 1], learning_rate=0.01)
 
     errors = []
-    num_epochs = 100
+    num_epochs = 500
 
     # prepare a graph that will update with the result of the
     # testing phase after each epoch

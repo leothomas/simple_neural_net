@@ -7,16 +7,10 @@ import matplotlib.pyplot as plt
 
 
 def target_function(x):
-    # add 1.0 to make all outputs positive
     # multiply input by 2*np.pi to force all outputs to
     # a [0,1] range
-    # multiply by 0.5 to reduce all output from [0,2]
-    # to [0,1]
-    # return (1.0 + np.sin(2*2 * np.pi * x)) * 0.5
 
     return np.sin(2 * 2 * np.pi * x)
-    # return np.cos(2 * np.pi * x)
-    # return - (x)**2 + 1
 
 
 def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_function):
@@ -73,10 +67,12 @@ if __name__ == "__main__":
     # epoch to epoch, reduce learning rate, to avoid bouncing
     # over global minima)
 
-    # TODO: allow each neuron to have its own, customized activation
-    # function
-
-    network = Network(shape=[1, 10, 25, 1], learning_rate=0.01)
+    network = Network(shape=[1, 10, 25, 1])
+    # set learning rate
+    network.learning_rate = 0.02
+    # set activation function of last layer to linear
+    for neuron in network.output_layer:
+        neuron.transfer = 'linear'
 
     errors = []
     num_epochs = 100

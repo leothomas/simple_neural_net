@@ -14,7 +14,6 @@ import numpy as np
 # is the number of neurons in the layer previous to N, which
 # are connected to the neurons in layer N
 
-# TODO: dynamically set activation function
 # TODO: decrease learning rate proportionally to error
 
 
@@ -48,6 +47,15 @@ class Neuron:
         self.__transfer = self.ACTIVATIONS[activation_function]['function']
         self.__transfer_derivative = self.ACTIVATIONS[activation_function]['derivative']
 
+    @property 
+    def transfer(self):
+        return self.__transfer
+    
+    @transfer.setter
+    def transfer(self, activation_function):
+        self.__transfer = self.ACTIVATIONS[activation_function]['function']
+        self.__transfer_derivative = self.ACTIVATIONS[activation_function]['derivative']
+    
     @property
     def bias(self):
         return self.__bias

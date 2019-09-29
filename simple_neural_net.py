@@ -19,12 +19,42 @@ import numpy as np
 
 
 class Neuron:
-    def __init__(self, learning_rate=0.1):
+
+    ACTIVATIONS = {
+        'tanh': {
+            'function': lambda x: np.tanh(x),
+            'derivative': lambda x: 1. - x * x
+        },
+        'relu': {
+            'function': lambda x: x * (x > 0),
+            'derivative': lambda x: 1. * (x > 0)
+        },
+        'sigmoid': {
+            'function': lambda x: 1. / (1. + np.exp(-x)),
+            'derivative': lambda x: x * (1. - x)
+        },
+        'linear': {
+            'function': lambda x: -1. if x < -1 else 1. if x > 1 else x,
+            'derivative': lambda x: 0 if x < -1 or x > 1 else 1.
+        },
+    }
+
+    def __init__(self, learning_rate=0.1, activation_function='tanh'):
 
         self.__synapses_in = []
         self.__synapses_out = []
         self.__bias = np.random.uniform(-1, 1)
         self.__learning_rate = learning_rate
+        self.__transfer = self.ACTIVATIONS[activation_function]['function']
+        self.__transfer_derivative = self.ACTIVATIONS[activation_function]['derivative']
+
+    @property
+    def bias(self):
+        return self.__bias
+    
+    @bias.setter
+    def bias(self, value):
+        self.__bias = value
 
     @property
     def learning_rate(self):
@@ -50,47 +80,6 @@ class Neuron:
     def synapses_out(self, synapses):
         self.__synapses_out = synapses
 
-    def tanh(self, x):
-        return np.tanh(x)
-
-    def dtanh(self, x):
-        return 1. - x * x
-
-    def ReLU(self, x):
-        return x * (x > 0)
-
-    def dReLU(self, x):
-        return 1. * (x > 0)
-
-    def sigmoid(self, x):
-        # basic sigmoid
-        return 1.0 / (1.0 + np.exp(-x))
-
-    def dsigmoid(self, x):
-        return x * (1.0 - x)
-
-    def linear(self, x):
-        if x < -1:
-            return -1
-        if x > 1:
-            return 1
-        return x
-
-    def dlinear(self, x):
-        if x < -1 or x > 1:
-            return 0
-        return 1
-
-    def transfer(self, x):
-        if self.__synapses_out == []:
-            return self.linear(x)
-        return self.tanh(x)
-
-    def transfer_derivative(self, x):
-        if self.__synapses_out == []:
-            return self.dlinear(x)
-        return self.dtanh(x)
-
     def calculate_error(self, expected=None):
 
         if expected:
@@ -100,7 +89,7 @@ class Neuron:
             # which makes sense to penalize large differences
             # It seems however that squaring this value also makes it
             # positive in all cases, which only ever increases the
-            # weights and biases, which leads to completely inaccurate
+            # weights and biases, which leads to inaccurate
             # results
             self.__error = expected - self.output
         else:
@@ -110,7 +99,7 @@ class Neuron:
                 for synapse in self.synapses_out
             ])
 
-        self.delta = self.__error * self.transfer_derivative(self.output)
+        self.delta = self.__error * self.__transfer_derivative(self.output)
 
     def update_weights(self):
         for synapse in self.synapses_in:
@@ -129,6 +118,7 @@ class Neuron:
         self.__output = output
 
     def activate(self, network_input=None):
+
         if network_input is None:
 
             inputs = [synapse.neuron_in.output for synapse in self.__synapses_in]
@@ -136,7 +126,7 @@ class Neuron:
 
             self.__activation = np.dot(weights_in, inputs) + self.__bias
 
-            self.output = self.transfer(self.__activation)
+            self.output = self.__transfer(self.__activation)
 
         # input was directly provided to neuron, meaning this is a
         # first layer neuron. In this case, each Neuron has only one
@@ -177,11 +167,25 @@ class Synapse:
 
 class Network:
 
-    def __init__(self, shape, learning_rate=0.1):
+    def __init__(self, shape):
+
         # create layers of the neural net
-        self.__learning_rate = learning_rate
-        self.__layers = [[Neuron(learning_rate) for _ in range(
-            layer_length)] for layer_length in shape]
+        self.__layers = []
+
+        for layer_index, layer_length in enumerate(shape):
+            # output layer is initialised with linear activation function
+            if layer_index == len(shape) - 1:
+                self.__layers.append([
+                    Neuron(activation_function='linear') for _ in range(layer_length)
+                ])
+            # all other layers default to tanh activation function
+            # this can be customized here, even layer by layer
+            else:
+                self.__layers.append([
+                    Neuron() for _ in range(layer_length)
+                ])
+
+        self.__learning_rate = 0.1
 
         # fully connects each layer to the next
         for layer_index, layer in enumerate(self.__layers):
@@ -202,6 +206,36 @@ class Network:
 
                     neuron.synapses_out.append(synapse)
                     target_neuron.synapses_in.append(synapse)
+
+    # TODO: optimize this!!
+    # Perhaps just implement an entirely matrix based one
+    @property
+    def biases(self):
+        return [
+            [neuron.bias for neuron in layer]
+            for layer in self.__layers
+        ]
+
+    @biases.setter
+    def biases(self, biases):
+        for li, layer in enumerate(self.__layers): 
+            for ni, neuron in enumerate(layer): 
+                neuron.bias = biases[li][ni]
+
+    @property
+    def weights(self):
+       return [ [ [
+            synapse.weight for synapse in neuron.synapses_out
+            ] for neuron in layer 
+            ] for layer in self.__layers
+        ]
+
+    @weights.setter
+    def weights(self, weights):
+        for li, layer in enumerate(self.__layers):
+            for ni, neuron in enumerate(layer):
+                for si, synapse in enumerate(neuron.synapses_out):
+                    synapse.weight = weights[li][ni][si]
 
     def print_activations(self):
         for index, layer in enumerate(self.__layers):
@@ -226,13 +260,12 @@ class Network:
     def forward_pass(self, network_input):
         if len(network_input) != len(self.__layers[0]):
             raise ValueError(
-                "Input not the same shape as input layer"
-            )
+                "Input not the same shape as input layer")
 
         for layer_index, layer in enumerate(self.__layers):
             for neuron_index, neuron in enumerate(layer):
 
-                # activate this neuron with only a single
+                # activate the first layer neurons with a single
                 # input as opposed as the previous layer's outputs
                 if layer_index == 0:
                     neuron.activate(network_input[neuron_index])
@@ -246,13 +279,14 @@ class Network:
 
         for layer_index, layer in reversed(list(enumerate(self.__layers))):
             for neuron_index, neuron in enumerate(layer):
-                # calculate output layer error based on the acutal expected values
-                # as oppsed to the weight/error for the next connected layer
+
+                # calculate output layer error based on the expected value
+                # as oppsed to the weight/error from the next connected layer
                 if layer_index == len(self.__layers) - 1:
                     neuron.calculate_error(expected_output[neuron_index])
-                    # print ("Expected: %.4f, actual: %.4f, delta: %.4f" %(expected_output[neuron_index],neuron.output, neuron.delta))
                 else:
                     neuron.calculate_error()
+
                 neuron.update_weights()
 
 

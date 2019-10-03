@@ -5,13 +5,13 @@ import curses
 from curses import KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN
 from random import randint, uniform
 import numpy as np
+from progress.bar import Bar
 from matplotlib import pyplot as plt
 from simple_neural_net import Network
 
 class Snake:
 
     DIRECTIONS = [KEY_UP, KEY_RIGHT, KEY_DOWN, KEY_LEFT]
-    #SIDELENGTH = 58
     HISTORY = {'inputs': [], 'outputs': []}
 
     def __init__(self, brain=None):
@@ -24,7 +24,9 @@ class Snake:
         if brain:
             self.brain = brain
         else:
-            self.brain = Network(shape=[10, 16, 16, 3])
+            self.brain = Network(shape=[6,18, 18, 3])
+            for neuron in self.brain.output_layer:
+                neuron.transfer= "linear"
 
         head = [
             # start 3 up to account for body
@@ -71,21 +73,24 @@ class Snake:
             self.head, self.food)/self.__MAX_DIST
         inputs.append(distance_to_food)
 
-        xbody = 0
-        ybody = 0
+        body_x_distance = self.__MAX_DIST
+        body_y_distance = self.__MAX_DIST
 
         for part in self.body:
             if self.head[0] == part[0]:
-                xbody = 1
+                body_x_distance = self.calculate_distance(
+                    self.head, part)/self.__MAX_DIST
+                break
             if self.head[1] == part[1]:
-                ybody = 1
+                body_y_distance = self.calculate_distance(
+                    self.head, part)/self.__MAX_DIST
+                break
 
-        inputs.append(xbody)  # snake "sees" itself along x
-        inputs.append(ybody)  # snake "sees" itself along y
+        inputs.append(body_x_distance)  # snake "sees" itself along x
+        inputs.append(body_y_distance)  # snake "sees" itself along y
 
-        inputs.extend([int(key == key_opt)
-                       for key_opt in self.DIRECTIONS])  # snake direction
-
+        # inputs.extend([int(key == key_opt)
+        #                for key_opt in self.DIRECTIONS])  # snake direction
         return inputs
 
     def out_of_bounds(self):
@@ -99,8 +104,8 @@ class Snake:
 
     def add_body_segment(self, key):
         self.body.insert(0, [
-            self.head[0] + (key == KEY_DOWN and 1) + (key == KEY_UP and -1),
-            self.head[1] + (key == KEY_LEFT and -1) + (key == KEY_RIGHT and 1)
+            self.head[0] + (key == KEY_LEFT and -1) + (key == KEY_RIGHT and 1),
+            self.head[1] + (key == KEY_DOWN and -1) + (key == KEY_UP and 1),
         ])
 
     def generate_new_food(self):
@@ -147,28 +152,32 @@ class Snake:
         return choice
 
 
-def setup_game(snake=None):
-    curses.initscr()
-
-    # newwin(nlines, ncolumns)
-    # this means that snake[:][0] is the y value, and snake[:][1] is the x value
-    win = curses.newwin(31, 31, 0, 0)
-    win.keypad(1)
-    curses.noecho()
-    curses.curs_set(0)
-    win.border(0)
-    win.nodelay(1)
-
+def setup_game(snake=None, visual=False):
+    
     if not snake:
         snake = Snake()
+    
+    if visual:
+        curses.initscr()
 
-    # Prints the food
-    win.addch(snake.food[0], snake.food[1], '@')
+        # newwin(nlines, ncolumns)
+        # this means that snake[:][0] is the y value, and snake[:][1] is the x value
+        win = curses.newwin(31, 31, 0, 0)
+        win.keypad(1)
+        curses.noecho()
+        curses.curs_set(0)
+        win.border(0)
+        win.nodelay(1)
 
-    return win, snake
+        # Prints the food
+        win.addch(snake.food[0], snake.food[1], '@')
+
+        return win, snake
+    
+    return None, snake
 
 
-def play_game(win, snake):
+def play_game(snake, win=None):
 
     # Initializing values
     score = 0
@@ -181,37 +190,38 @@ def play_game(win, snake):
     if uniform(0,1)>0.5:
         key = KEY_RIGHT
     
-
     # While Esc key is not pressed
-    while key != 27:
-        win.border(0)
-        # Printing 'Score' and
-        win.addstr(0, 2, 'Score : ' + str(score) + ' ')
-        
+    while True:
+        if win: 
+            win.border(0)
+            # Printing 'Score' and
+            win.addstr(0, 2, 'Score : ' + str(score) + ' ')
+            
 
-        # Increases the speed of Snake as its length increases
-        # win.timeout(150 - (len(snake)/5 + len(snake)/10) % 120)
-        # block the screen and wait for user input
-        win.timeout(1)
+            # Increases the speed of Snake as its length increases
+            # win.timeout(150 - (len(snake)/5 + len(snake)/10) % 120)
+            # block the screen and wait for user input
+            win.timeout(15)
 
         # Previous key pressed
         prev_key = key
 
-        event = win.getch()
-        key = key if event == -1 else event
+        if win: 
+            event = win.getch()
+            key = key if event == -1 else event
 
-        # If SPACE BAR is pressed, wait for another
-        if key == ord(' '):
-            # one (Pause/Resume)
+            # If SPACE BAR is pressed, wait for another
+            if key == ord(' '):
+                # one (Pause/Resume)
 
-            key = -1
-            while key != ord(' '):
-                key = win.getch()
-                if key == 27:
-                    break
+                key = -1
+                while key != ord(' '):
+                    key = win.getch()
+                    if key == 27:
+                        break
 
-            key = prev_key
-            continue
+                key = prev_key
+                continue
 
         if lives <= 0:
             break
@@ -245,60 +255,64 @@ def play_game(win, snake):
             # max 500 lives
             if lives <= 400:
                 lives += 100
-            score += 100
             
-            
-            try:
-                win.addch(snake.food[0], snake.food[1], '@')
-            except Exception as e:
-                print ("Attempted to add food at: ", snake.food)
-                break
-                
+            if win:  
+                try:
+                    win.addch(snake.food[0], snake.food[1], '@')
+                except Exception as e:
+                    print ("Attempted to add food at: ", snake.food)
+                    break
+                    
                 
                 
         else:
             # [1] If it does not eat the food, length decreases
             last = snake.body.pop()
-            try:
-                win.addch(last[0], last[1], ' ')
-            except Exception as e:
-                
-                print ("Attempted to remvove tail from: ", last)
-                break
-
-        # draw a characters at the new head corrdinates to make the
-        # snake "advance" by one spot
-        win.addch(snake.head[0], snake.head[1], '#')
-        
+            if win: 
+                try:
+                    win.addch(last[0], last[1], ' ')
+                except Exception as e:
+                    
+                    print ("Attempted to remvove tail from: ", last)
+                    break
+        if win: 
+            # draw a characters at the new head corrdinates to make the
+            # snake "advance" by one spot
+            win.addch(snake.head[0], snake.head[1], '#')
+            
         if lives < 1:
             break
 
-    curses.endwin()
+    if win: 
+        curses.endwin()
 
     return score, snake
 
 
-def generation(snakes=None):
+def generation(snakes=None, visual=False):
 
     generation = []
 
-    for i in range(55):
+    for i in range(1000):
 
         if snakes:
             snake = snakes[i]
-            win, snake = setup_game(snake)
+            win, snake = setup_game(snake=snake, visual=visual)
 
         else:
-            win, snake = setup_game()
+            win, snake = setup_game(visual=visual)
 
-        final_score, snake = play_game(win, snake)
+        final_score, snake = play_game(snake=snake, win=win)
     
         generation.append({
             'score': final_score,
             'snake': snake
         })
-
-    return sorted(generation, key=lambda x: x['score'], reverse=True)[:6]
+    select_percent = 0.1
+    num_snakes = int(len(generation)*select_percent)
+    top_snakes = sorted(generation, key=lambda x: x['score'], reverse=True)[:num_snakes]
+    top_snakes_score = sum([x['score'] for x in top_snakes])/len(top_snakes)
+    return top_snakes, top_snakes_score
 
 # TODO: revisit this, use numpy function if possible (currently
 # the issue is that the biases/weights are not regularly shaped)
@@ -332,27 +346,52 @@ def reproduce(snake1, snake2):
     for li, layer in enumerate(b1):
         for ni, neuron in enumerate(b1[li]):
 
-            if len(b1_flat) > crossover_pt * b1_initial:
+            #if len(b1_flat) > crossover_pt * b1_initial:
+            if uniform(0,1) <= 0.5:
+                temp = b2[li][ni]
+                b2[li][ni] = b1[li][ni]
+                b1[li][ni] = temp
 
-                b2[li][ni] = b1_flat.pop()
-                
-                # randomly flip bits with 10% probability
-                if uniform(0, 1) <= 0.1:
-                    b2[li][ni] = -b2[li][ni] 
-
+            # random mutation                
+            if uniform(0, 1) <= 0.1:
+                b2[li][ni] = mutation(b2[li][ni])
+                b1[li][ni] = mutation(b1[li][ni])
+               
             for si, synapses in enumerate(w1[li][ni]):
-                if len(w1_flat) > crossover_pt * w1_initial:
-                    
-                    w2[li][ni][si] = w1_flat.pop()
-                    # randomly flip bits with 10% probability
-                    if uniform(0, 1) <= 0.1:
-                        w2[li][ni][si] = -w2[li][ni][si] 
+                #if len(w1_flat) > crossover_pt * w1_initial:
+                if uniform(0,1) <= 0.5:
+                    temp = w2[li][ni][si]
+                    w2[li][ni][si] = w1[li][ni][si]
+                    w1[li][ni][si] = temp
 
-    brain = Network(shape=[10, 16, 16, 3])
-    brain.biases = b2
-    brain.weights = w2
-    return Snake(brain=brain)
+                #random mutation
+                if uniform(0, 1) <= 0.1:
+                    w2[li][ni][si] = mutation(w2[li][ni][si])
+                    w1[li][ni][si] = mutation(w1[li][ni][si])
 
+    brain1 = Network(shape=[6, 18, 18, 3])
+    brain2 = Network(shape=[6, 18, 18, 3])
+    
+    for neuron in brain1.output_layer:
+        neuron.transfer = 'linear'
+    
+    for neuron in brain2.output_layer:
+        neuron.transfer = 'linear'
+    
+    brain1.biases = b1
+    brain1.weights = w1
+    
+    brain2.biases = b2
+    brain2.weights = w2
+    
+    return [Snake(brain=brain1), Snake(brain=brain2)]
+
+# add small, random mutation (without exceeding [1,1])
+def mutation(value):
+    mut = uniform(-1, 1)
+    while value + mut < -1 or value + mut > 1:
+        mut = uniform(-1, 1)
+    return  value + mut
 
 def roulette_select(snakes, pick):
     current = 0
@@ -366,40 +405,56 @@ def get_pair(snakes):
 
     total_parents_score = sum([snake['score'] for snake in snakes])
 
-    pick = uniform(0, total_parents_score)
-
-    return roulette_select(snakes, pick), roulette_select(snakes, pick)
+    return (
+        roulette_select(snakes, uniform(0, total_parents_score)), 
+        roulette_select(snakes, uniform(0, total_parents_score))
+    )
 
 
 def crossover(snakes):
 
-    new_snakes = []
+    # perserve all parents from the previous generation, in 
+    # case none of the snakes outperform the parents
+    new_snakes = [Snake(brain=snake['snake'].brain) for snake in snakes]
 
-    while len(new_snakes) < 55:
+    while len(new_snakes) < 1000:
         snake1, snake2 = get_pair(snakes)
-        new_snakes.append(reproduce(snake1, snake2))
 
+        new_snakes.extend(reproduce(snake1, snake2))
+        
     return new_snakes
 
 
 if __name__ == "__main__":
 
-    top_snakes = generation()
+    top_snakes, top_snakes_score = generation(visual=False)
     new_snakes = crossover(top_snakes)
     
     gen_count = 0   
     scores = []
-    while gen_count <= 500:
+    max_gen = 30   
+    bar = Bar('Training', max=max_gen)
+    while gen_count <= max_gen: 
        
-        top_snakes = generation(new_snakes)
-        scores.append(top_snakes[0]['score'])
+        top_snakes, top_snakes_score = generation(new_snakes, visual=False)
+        
+        scores.append(top_snakes_score)
+        
         new_snakes = crossover(top_snakes)
         gen_count += 1
-    
+
+        bar.next()
+    bar.finish()
+
     print ("Snakes after 200 generations; ")
     print (top_snakes)
     plt.plot(scores)
     plt.show()
+    
+    play_visual = input("Go through one generation visually?\n")
+    if play_visual.lower() in ['yes', 'y', 'ye']:
+        generation(snakes=new_snakes, visual=True)
+
     # print("Final score: ", final_score)
 
     # print("Decision Inputs: ")

@@ -3,6 +3,7 @@ import random
 import time
 from progress.bar import Bar
 from simple_neural_net import Network
+#from matrix_neural_net import Network
 import matplotlib.pyplot as plt
 
 
@@ -13,7 +14,7 @@ def target_function(x):
     return np.sin(2 * 2 * np.pi * x)
 
 
-def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_function):
+def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_function, previous_error=None):
     bar = Bar('Training', max=num_passes)
 
     # training step
@@ -22,13 +23,16 @@ def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_fu
         x = np.random.uniform(0, 1.0)
 
         # pass through the network (lne function only takes one input)
-        network.forward_pass([x])
+        o = network.forward_pass([x])
 
         # calculate the expected output value
-        expected_output = target_function(x)
+        y = target_function(x)
 
         # backpropgate the expected value through the network
-        network.backwards_pass([expected_output])
+        network.backward_pass(
+            network_input=[x],
+            network_output=o,
+            expected_output=[y])
 
         bar.next()
     bar.finish()
@@ -44,17 +48,20 @@ def train_test_sin(network, num_passes=500, ratio=0.1, target_function=target_fu
         x = np.random.uniform(0, 1.0)
 
         # pass through the network
-        network.forward_pass([x])
+        output = network.forward_pass([x])
         # store input value for testing purposes
         inputs.append(x)
         # store output value for graphing purposes
-        actual_outputs.append(network.output_layer[0].output)
+        actual_outputs.append(output)
 
         expected_output = target_function(x)
 
         # added squared difference between the expected and the actual
         # to calculate loss function
-        error += np.sqrt((network.output_layer[0].output - expected_output)**2)
+        error += np.sqrt((output - expected_output)**2)
+
+    # if previous_error and np.abs(error-previous_error)/previous_error < 0.1:
+    #    network.learning_rate += 0.05
 
     print("Error:%.4f " % error)
     # return inputs and output from testing phase for graphing
@@ -67,9 +74,8 @@ if __name__ == "__main__":
     # epoch to epoch, reduce learning rate, to avoid bouncing
     # over global minima)
 
-    network = Network(shape=[1, 10, 25, 1])
-    # set learning rate
-    network.learning_rate = 0.02
+    network = Network(shape=(1, 10, 25, 1))
+
     # set activation function of last layer to linear
     for neuron in network.output_layer:
         neuron.transfer = 'linear'
@@ -90,13 +96,20 @@ if __name__ == "__main__":
     test_plot = ax.scatter(x, expected, label="Network Output", c="r")
 
     ax.legend()
-
+    error = None
     for i in range(num_epochs):
         print("iteration %i out of %i" % ((i + 1), num_epochs))
+        params = {
+            'network': network,
+            'num_passes': 500,
+            'ratio': 0.25,
+            'target_function': target_function
+        }
+        if error:
+            params['previous_error'] = error
+
         error, test_inputs, test_outputs = train_test_sin(
-            network,
-            num_passes=500, ratio=0.25,
-            target_function=target_function
+            **params
         )
 
         errors.append(error)

@@ -16,7 +16,6 @@ import numpy as np
 
 # TODO: decrease learning rate proportionally to error
 
-
 class Neuron:
 
     ACTIVATIONS = {
@@ -38,7 +37,7 @@ class Neuron:
         },
     }
 
-    def __init__(self, learning_rate=0.1, activation_function='tanh'):
+    def __init__(self, learning_rate=0.02, activation_function='tanh'):
 
         self.__synapses_in = []
         self.__synapses_out = []
@@ -193,7 +192,7 @@ class Network:
                     Neuron() for _ in range(layer_length)
                 ])
 
-        self.__learning_rate = 0.1
+        self.__learning_rate = 0.02
 
         # fully connects each layer to the next
         for layer_index, layer in enumerate(self.__layers):
@@ -279,8 +278,10 @@ class Network:
                     neuron.activate(network_input[neuron_index])
                 else:
                     neuron.activate()
+        
+        return np.array([neuron.output for neuron in self.output_layer])
 
-    def backwards_pass(self, expected_output):
+    def backward_pass(self, network_input, network_output, expected_output):
         if len(expected_output) != len(self.__layers[-1]):
             raise ValueError(
                 "Expected output not the same shape as actual output")

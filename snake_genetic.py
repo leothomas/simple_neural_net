@@ -293,7 +293,7 @@ def generation(snakes=None, visual=False):
 
     generation = []
 
-    for i in range(1000):
+    for i in range(50):
 
         if snakes:
             snake = snakes[i]
@@ -417,7 +417,7 @@ def crossover(snakes):
     # case none of the snakes outperform the parents
     new_snakes = [Snake(brain=snake['snake'].brain) for snake in snakes]
 
-    while len(new_snakes) < 1000:
+    while len(new_snakes) < 50:
         snake1, snake2 = get_pair(snakes)
 
         new_snakes.extend(reproduce(snake1, snake2))

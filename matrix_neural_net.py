@@ -106,32 +106,18 @@ class Network:
             raise ValueError("Input shape incorrect. Got len %s expected len %s" % (
                 len(network_input), len(self.__shape[0])
             ))
-        # print("\n")
-        #print("\nOUTPUT LAYER: ")
-        #print("Input: ", network_input)
         error = expected_output - network_output
 
-        #print("Output: ", network_output)
-        #print("Expected: ", expected_output)
-        #print("Error: ", error)
         delta = error * self.__output_transfer_derivative(network_output)
 
-        #print("Delta: ", delta)
         for i in reversed(range(0, len(self.__weights))):
-            # print("\n")
-            #print("\nHIDDEN LAYER")
+
             # store these in a temporary varaible to such that the
             # error/delta of the next layer are calculated using the
             # the original weights, not the updated ones
             bias_update = delta * self.__learning_rate
             weight_update = np.dot(self.__activations[i+1].T,
                                    delta) * self.__learning_rate
-
-            #print("\nPrevious layer weights; ", self.__weights[i])
-            #print("Previous layer biases: ", self.__biases[i])
-
-            #print("\nUPDATED Weights: ", temp_weights)
-            #print("UPDATED biases: ", temp_biases)
 
             # error/ delta for the next layer of weights and biases
             # while the error and delta are calculated for the first
@@ -140,9 +126,5 @@ class Network:
             error = np.dot(delta, self.__weights[i].T)
             delta = error * self.__transfer_derivative(self.__activations[i])
 
-            #print("\nNext layer error: ", error)
-            #print("Next layer delta: ", delta)
-
             self.__biases[i] += bias_update
             self.__weights[i] += weight_update
-            #r = input("Continue?")

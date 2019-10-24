@@ -2,8 +2,8 @@ import numpy as np
 import random
 import time
 from progress.bar import Bar
-from simple_neural_net import Network
-#from matrix_neural_net import Network
+#from simple_neural_net import Network
+from matrix_neural_net import Network
 import matplotlib.pyplot as plt
 
 
@@ -76,9 +76,9 @@ if __name__ == "__main__":
 
     network = Network(shape=(1, 10, 25, 1))
 
-    # set activation function of last layer to linear
-    for neuron in network.output_layer:
-        neuron.transfer = 'linear'
+    # # set activation function of last layer to linear
+    # for neuron in network.output_layer:
+    #     neuron.transfer = 'linear'
 
     errors = []
     num_epochs = 100

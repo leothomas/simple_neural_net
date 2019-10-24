@@ -72,10 +72,6 @@ class Network:
                 len(X), len(self.__shape[0])
             ))
 
-        # z = np.dot(X, self.__weights[0]) + self.__biases[0]
-
-        # TODO: play around with this...
-        # self.__activations[0] = self.__transfer(X)
         self.__activations[0] = X
 
         for i in range(0, len(self.__activations)-1):
@@ -106,8 +102,9 @@ class Network:
             raise ValueError("Input shape incorrect. Got len %s expected len %s" % (
                 len(network_input), len(self.__shape[0])
             ))
-        error = expected_output - network_output
 
+        # Output error
+        error = expected_output - network_output
         delta = error * self.__output_transfer_derivative(network_output)
 
         for i in reversed(range(0, len(self.__weights))):
@@ -116,15 +113,19 @@ class Network:
             # error/delta of the next layer are calculated using the
             # the original weights, not the updated ones
             bias_update = delta * self.__learning_rate
-            weight_update = np.dot(self.__activations[i+1].T,
-                                   delta) * self.__learning_rate
+
+            # TODO: figure out how to avoid these reshaping operations
+            a = self.__activations[i].reshape(1, len(self.__activations[i]))
+            d = delta.reshape(1, len(delta))
+
+            weight_update = np.dot(a.T, d) * self.__learning_rate
 
             # error/ delta for the next layer of weights and biases
-            # while the error and delta are calculated for the first
-            # (input) layer, they are unused, since no other neurons
-            # depend on that layer
             error = np.dot(delta, self.__weights[i].T)
             delta = error * self.__transfer_derivative(self.__activations[i])
+
+            # TODO: figure out how to avoid this reshape operation
+            weight_update = weight_update.reshape(self.__weights[i].shape)
 
             self.__biases[i] += bias_update
             self.__weights[i] += weight_update

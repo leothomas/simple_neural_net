@@ -25,6 +25,8 @@ Currently the networks make no progress and their success is completely random. 
 
 To see the games of snake being played as the algorithm trains, change `visual=False` to `visual=True` in lines 430 and 439. 
 
-The OOP networks are quite slow to train and memory intensive for such an application (some online sources say to try generations of 1000, 2000, or 2500 individuals). So I've started another class with the same method signatures as the OOP neural network, which will implement the forward/backward propagation in terms of matrix operations. While it executes much more quickly, I am having an issue with the network approximating only one section of the sin curve and setting everything on either end to -1 or 1. It then evolves towards some sort of step function. To run this network, switch lines 5 and 6 and comment out lines 79-81, and run `python3 train_test_network.py`
+The OOP networks are quite slow to train and memory intensive for such an application (some online sources say to try generations of 1000, 2000, or 2500 individuals). So I've made another class with the same method signatures as the OOP neural network, which will implement the forward/backward propagation in terms of matrix operations. This executes much more efficiently and can handle more complex network shapes. To train and test this network against a simple sine function, switch lines 5 and 6 and comment out lines 79-81, and run `python3 train_test_network.py`. 
 
-If you can spot any errors in the matrix operations that are leading to this wacky behaviour, please reach out!
+To see this network's performance against the MNIST handwritten digit recognition dataset, take a look at this [jupyter notebook](/MNIST.ipynb). This network acheived an ~80% accuracy which can easily be improved upon with some of the optimizations listed at the bottom of the notebook. 
+
+If you spot any errors potential improvements, please reach out!

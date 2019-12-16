@@ -54,8 +54,15 @@ class Snake:
         # distance is normalized to max distance (center to corner)
         return np.sqrt((point2[0]-point1[0])**2 + (point2[1]-point1[1])**2)
 
-    def calculate_angle(self, origin, point):
-        return np.arcsin((point[1]-origin[1])/self.calculate_distance(origin, point)) * (180/np.pi)
+    def calculate_angle(self, origin, point, degrees=False):
+        epsilon = 10**-6 # add a small value to divisor to avoid division by zero error
+        alpha = np.arctan((point[0]-origin[0])/(point[1]-origin[1] + epsilon)) 
+        
+        if degrees:
+            return alpha * (180/np.pi)
+        
+        return  alpha
+        #return np.arcsin((point[1]-origin[1])/self.calculate_distance(origin, point)) * (180/np.pi)
 
     def calculate_inputs(self, key):
         # inputs are: position of snake, position of food, and direction of snake
@@ -63,14 +70,16 @@ class Snake:
         inputs = [
             # distance from the wall along the x-axis
             self.calculate_distance(
-                self.head, [self.head[0], 0])/self.__MAX_DIST,
+                self.head, [self.head[0], 0]),#/self.__MAX_DIST,
             # distance from the wall along the y-axis
             self.calculate_distance(
-                self.head, [0, self.head[1]])/self.__MAX_DIST
+                self.head, [0, self.head[1]])#/self.__MAX_DIST
         ]
 
         # divide by 180 to normalize to [-1, 1]
-        angle_to_food = self.calculate_angle(self.head, self.food)/180
+        #angle_to_food = (self.calculate_angle(self.head, self.food)-180)/180
+        
+        angle_to_food = self.calculate_angle(self.head, self.food, degrees=False)
         inputs.append(angle_to_food)
 
         distance_to_food = self.calculate_distance(
@@ -83,11 +92,11 @@ class Snake:
         for part in self.body:
             if self.head[0] == part[0]:
                 body_x_distance = self.calculate_distance(
-                    self.head, part)/self.__MAX_DIST
+                    self.head, part)#/self.__MAX_DIST
                 break
             if self.head[1] == part[1]:
                 body_y_distance = self.calculate_distance(
-                    self.head, part)/self.__MAX_DIST
+                    self.head, part)#/self.__MAX_DIST
                 break
 
         inputs.append(body_x_distance)  # snake "sees" itself along x
@@ -201,7 +210,7 @@ def play_game(snake, win=None):
             # Increases the speed of Snake as its length increases
             # win.timeout(150 - (len(snake)/5 + len(snake)/10) % 120)
             # block the screen and wait for user input
-            win.timeout(15)
+            win.timeout(100)
 
         # Previous key pressed
         prev_key = key
@@ -226,7 +235,7 @@ def play_game(snake, win=None):
         if lives <= 0:
             break
 
-        score += 1
+        score += 1 # each new move adds a point
         lives -= 1
         key = snake.decide(prev_key)
 
@@ -250,6 +259,9 @@ def play_game(snake, win=None):
         # When snake eats the food
         if snake.head == snake.food:
             
+            # eating food adds 10 points, 
+            # I want to prioritize food seeking over simply surviving
+            # (which can be acheived by simply going in circles)
             score += 10
             
             snake.generate_new_food()
@@ -322,7 +334,6 @@ def reproduce(snake1, snake2):
     w1 = snake1['snake'].brain.weights
     w2 = snake2['snake'].brain.weights
     
-    crossover_point = int(uniform(0,1) * len(w1))
 
     # TODO: figure out how to select the layers randomly from one or the other
     # without having to loop through them 
@@ -330,20 +341,22 @@ def reproduce(snake1, snake2):
 
     for li, _ in enumerate(w1):
 
-        # randomly select layers from one or the other            
-        if uniform(0,1) > 0.5 :
+        # randomly switch layers between the two snakes
+        if np.random.choice([True, False]) :
             temp_layer = w1[li]
             w1[li] = w2[li]
             w2[li] = temp_layer
         
-        if uniform(0,1) > 0.5 :
+        if np.random.choice([True, False]) :
             temp_layer = b1[li]
             b1[li] = b2[li]
             b2[li] = temp_layer
         
-        
+        # mutate biases
         b1[li] = mutation(b1[li])
-        b2[li] = mutation(b2[li])
+        b2[li] = mutation(b2[li]) 
+
+        # mutate weights
         w1[li] = mutation(w1[li])
         w2[li] = mutation(w2[li])
         
@@ -376,9 +389,9 @@ def mutation(values):
     values = values.flatten()
     
     # mutate a small amount (10%) of values
-    mutation_prob =0.1
+    mutation_prob = 0.01
 
-    # randomly select the 10% of indices to be mutated
+    # randomly select the above percent of indices to be mutated
     indices_to_mutate = np.random.choice(
         np.arange(len(values)),  
         size=int(mutation_prob * len(values)), 
@@ -393,13 +406,10 @@ def mutation(values):
     
     return values
 
-# bump the value by a random amount (without exceeding [-1,1])
 def mutate(value):    
-    mut = uniform(-0.5, 0.5)
-    while value + mut < -1 or value + mut > 1:
-        mut = uniform(-1, 1)
-    
-    return  value + mut
+    mut = uniform(-1, 1)
+
+    return value + ( value * mut)
 
     
 def roulette_select(snakes, pick):
@@ -437,7 +447,7 @@ def crossover(snakes, num_snakes):
 if __name__ == "__main__":
 
     print ("Starting...")
-    snakes_per_gen = 200
+    snakes_per_gen = 50
     top_snakes, top_snakes_score = generation(visual=False, num_snakes=snakes_per_gen)
     
     print ("Crossing over")
@@ -447,9 +457,10 @@ if __name__ == "__main__":
 
     gen_count = 0   
     scores = []
-    max_gen = 300    
-    bar = Bar('Training', max=max_gen)
-    while gen_count <= max_gen: 
+    max_gen = 100
+
+    bar = Bar('Training ', max=max_gen)
+    while gen_count <= max_gen:  
        
         top_snakes, top_snakes_score = generation(num_snakes=snakes_per_gen, snakes=new_snakes, visual=False, )
         

@@ -54,6 +54,22 @@ class Network:
         self.__learning_rate = learning_rate
 
     @property
+    def weights(self):
+        return self.__weights
+
+    @weights.setter
+    def weights(self, new_weights):
+        self.__weights = new_weights
+
+    @property
+    def biases(self):
+        return self.__biases
+
+    @biases.setter
+    def biases(self, new_biases):
+        self.__biases = new_biases
+
+    @property
     def learning_rate(self):
         return self.__learning_rate
 

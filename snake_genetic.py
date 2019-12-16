@@ -7,7 +7,8 @@ from random import randint, uniform
 import numpy as np
 from progress.bar import Bar
 from matplotlib import pyplot as plt
-from simple_neural_net import Network
+#from simple_neural_net import Network
+from matrix_neural_net import Network
 
 class Snake:
 
@@ -24,9 +25,12 @@ class Snake:
         if brain:
             self.brain = brain
         else:
-            self.brain = Network(shape=[6,18, 18, 3])
-            for neuron in self.brain.output_layer:
-                neuron.transfer= "linear"
+            self.brain = Network(
+                shape=[6, 18, 18, 3], 
+                activation="tanh",
+                output_activation="linear"
+                )
+            
 
         head = [
             # start 3 up to account for body
@@ -120,9 +124,9 @@ class Snake:
 
         self.food = food
 
-    def interpret(self, prev_key):
-        outputs = [neuron.output for neuron in self.brain.output_layer]
-        max_output_index = outputs.index(max(outputs))
+    def interpret(self, prev_key, output):
+    
+        max_output_index = np.argmax(output)
 
         if max_output_index == 1:  # go straight
             return prev_key
@@ -143,9 +147,9 @@ class Snake:
 
         self.HISTORY['inputs'].append(inputs)
 
-        self.brain.forward_pass(inputs)
+        output = self.brain.forward_pass(inputs)
 
-        choice = self.interpret(prev_key)
+        choice = self.interpret(prev_key, output)
 
         self.HISTORY['outputs'].append(choice)
 
@@ -184,11 +188,7 @@ def play_game(snake, win=None):
 
     lives = 200
 
-    # TODO: make the inital location, direction and food location random.
-    # It shouldn't start very close to a wall, and headed directly for it.
-    key = KEY_LEFT
-    if uniform(0,1)>0.5:
-        key = KEY_RIGHT
+    key = np.random.choice([KEY_LEFT, KEY_UP, KEY_RIGHT, KEY_DOWN])
     
     # While Esc key is not pressed
     while True:
@@ -250,20 +250,20 @@ def play_game(snake, win=None):
         # When snake eats the food
         if snake.head == snake.food:
             
+            score += 10
+            
             snake.generate_new_food()
 
-            # max 500 lives
-            if lives <= 400:
-                lives += 100
+            lives += 100
+            if lives >500:
+                lives = 500
             
             if win:  
                 try:
                     win.addch(snake.food[0], snake.food[1], '@')
-                except Exception as e:
+                except Exception:
                     print ("Attempted to add food at: ", snake.food)
                     break
-                    
-                
                 
         else:
             # [1] If it does not eat the food, length decreases
@@ -289,11 +289,11 @@ def play_game(snake, win=None):
     return score, snake
 
 
-def generation(snakes=None, visual=False):
+def generation(num_snakes, snakes=None, visual=False):
 
     generation = []
 
-    for i in range(50):
+    for i in range(num_snakes):
 
         if snakes:
             snake = snakes[i]
@@ -314,15 +314,6 @@ def generation(snakes=None, visual=False):
     top_snakes_score = sum([x['score'] for x in top_snakes])/len(top_snakes)
     return top_snakes, top_snakes_score
 
-# TODO: revisit this, use numpy function if possible (currently
-# the issue is that the biases/weights are not regularly shaped)
-def flatten(l):
-    if l == []:
-        return l
-    if isinstance(l[0], list):
-        return flatten(l[0]) + flatten(l[1:])
-    return l[:1] + flatten(l[1:])
-
 
 def reproduce(snake1, snake2):
     b1 = snake1['snake'].brain.biases
@@ -330,54 +321,44 @@ def reproduce(snake1, snake2):
 
     w1 = snake1['snake'].brain.weights
     w2 = snake2['snake'].brain.weights
-
-    # generate new snake by randomly selecting biases
-    # and weights from each parent with 50/50 proability
-
-    b1_flat = flatten(b1)
-
-    w1_flat = flatten(w1)
-
-    b1_initial = len(b1_flat)
-    w1_initial = len(w1_flat)
-
-    crossover_pt = uniform(0, 1)
-
-    for li, layer in enumerate(b1):
-        for ni, neuron in enumerate(b1[li]):
-
-            #if len(b1_flat) > crossover_pt * b1_initial:
-            if uniform(0,1) <= 0.5:
-                temp = b2[li][ni]
-                b2[li][ni] = b1[li][ni]
-                b1[li][ni] = temp
-
-            # random mutation                
-            if uniform(0, 1) <= 0.1:
-                b2[li][ni] = mutation(b2[li][ni])
-                b1[li][ni] = mutation(b1[li][ni])
-               
-            for si, synapses in enumerate(w1[li][ni]):
-                #if len(w1_flat) > crossover_pt * w1_initial:
-                if uniform(0,1) <= 0.5:
-                    temp = w2[li][ni][si]
-                    w2[li][ni][si] = w1[li][ni][si]
-                    w1[li][ni][si] = temp
-
-                #random mutation
-                if uniform(0, 1) <= 0.1:
-                    w2[li][ni][si] = mutation(w2[li][ni][si])
-                    w1[li][ni][si] = mutation(w1[li][ni][si])
-
-    brain1 = Network(shape=[6, 18, 18, 3])
-    brain2 = Network(shape=[6, 18, 18, 3])
     
-    for neuron in brain1.output_layer:
-        neuron.transfer = 'linear'
-    
-    for neuron in brain2.output_layer:
-        neuron.transfer = 'linear'
-    
+    crossover_point = int(uniform(0,1) * len(w1))
+
+    # TODO: figure out how to select the layers randomly from one or the other
+    # without having to loop through them 
+    # w1_indices = np.random.choice(np.arange(len(w1)), crossover_point)
+
+    for li, _ in enumerate(w1):
+
+        # randomly select layers from one or the other            
+        if uniform(0,1) > 0.5 :
+            temp_layer = w1[li]
+            w1[li] = w2[li]
+            w2[li] = temp_layer
+        
+        if uniform(0,1) > 0.5 :
+            temp_layer = b1[li]
+            b1[li] = b2[li]
+            b2[li] = temp_layer
+        
+        
+        b1[li] = mutation(b1[li])
+        b2[li] = mutation(b2[li])
+        w1[li] = mutation(w1[li])
+        w2[li] = mutation(w2[li])
+        
+   
+    brain1 = Network(
+        shape=[6, 18, 18, 3],
+        activation='tanh',
+        output_activation='sigmoid'
+    )
+    brain2 = Network(
+        shape=[6, 18, 18, 3],
+        activation='tanh',
+        output_activation='sigmoid'
+        )
+     
     brain1.biases = b1
     brain1.weights = w1
     
@@ -387,12 +368,40 @@ def reproduce(snake1, snake2):
     return [Snake(brain=brain1), Snake(brain=brain2)]
 
 # add small, random mutation (without exceeding [1,1])
-def mutation(value):
-    mut = uniform(-1, 1)
+def mutation(values):
+    # record original shape (in case of weights, which is a 2d array)
+    shape = values.shape
+
+    #flatten array to be able to loop through it
+    values = values.flatten()
+    
+    # mutate a small amount (10%) of values
+    mutation_prob =0.1
+
+    # randomly select the 10% of indices to be mutated
+    indices_to_mutate = np.random.choice(
+        np.arange(len(values)),  
+        size=int(mutation_prob * len(values)), 
+        replace=False
+    )
+
+    for mutation_index in indices_to_mutate:
+        values[mutation_index] = mutate(values[mutation_index])
+    
+    #reshape array into original shape
+    values = values.reshape(shape)
+    
+    return values
+
+# bump the value by a random amount (without exceeding [-1,1])
+def mutate(value):    
+    mut = uniform(-0.5, 0.5)
     while value + mut < -1 or value + mut > 1:
         mut = uniform(-1, 1)
+    
     return  value + mut
 
+    
 def roulette_select(snakes, pick):
     current = 0
     for snake in snakes:
@@ -411,13 +420,13 @@ def get_pair(snakes):
     )
 
 
-def crossover(snakes):
+def crossover(snakes, num_snakes):
 
     # perserve all parents from the previous generation, in 
     # case none of the snakes outperform the parents
     new_snakes = [Snake(brain=snake['snake'].brain) for snake in snakes]
 
-    while len(new_snakes) < 50:
+    while len(new_snakes) < num_snakes:
         snake1, snake2 = get_pair(snakes)
 
         new_snakes.extend(reproduce(snake1, snake2))
@@ -427,20 +436,26 @@ def crossover(snakes):
 
 if __name__ == "__main__":
 
-    top_snakes, top_snakes_score = generation(visual=False)
-    new_snakes = crossover(top_snakes)
+    print ("Starting...")
+    snakes_per_gen = 200
+    top_snakes, top_snakes_score = generation(visual=False, num_snakes=snakes_per_gen)
     
+    print ("Crossing over")
+    new_snakes = crossover(top_snakes, num_snakes=snakes_per_gen)
+    
+    print ("Done")
+
     gen_count = 0   
     scores = []
-    max_gen = 30   
+    max_gen = 300    
     bar = Bar('Training', max=max_gen)
     while gen_count <= max_gen: 
        
-        top_snakes, top_snakes_score = generation(new_snakes, visual=False)
+        top_snakes, top_snakes_score = generation(num_snakes=snakes_per_gen, snakes=new_snakes, visual=False, )
         
         scores.append(top_snakes_score)
         
-        new_snakes = crossover(top_snakes)
+        new_snakes = crossover(top_snakes, num_snakes=snakes_per_gen)
         gen_count += 1
 
         bar.next()
@@ -453,7 +468,7 @@ if __name__ == "__main__":
     
     play_visual = input("Go through one generation visually?\n")
     if play_visual.lower() in ['yes', 'y', 'ye']:
-        generation(snakes=new_snakes, visual=True)
+        generation(num_snakes=snakes_per_gen, snakes=new_snakes, visual=True)
 
     # print("Final score: ", final_score)
 

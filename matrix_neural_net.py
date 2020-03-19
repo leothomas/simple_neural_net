@@ -2,7 +2,6 @@ import numpy as np
 
 
 class Network:
-
     ACTIVATIONS = {
         'tanh': (
             lambda X: np.tanh(X),
@@ -28,7 +27,7 @@ class Network:
         )
     }
 
-    def __init__(self, shape, activation='tanh', output_activation='tanh', learning_rate=0.02):
+    def __init__(self, shape, activation='tanh', output_activation='sigmoid', learning_rate=0.02):
         self.__shape = shape
         self.__weights = []
         self.__activations = []
@@ -85,7 +84,7 @@ class Network:
             X = np.array(X)
         if len(X) != self.__shape[0]:
             raise ValueError("Input shape incorrect. Got len %s expected len %s" % (
-                len(X), len(self.__shape[0])
+                len(X), self.__shape[0]
             ))
 
         self.__activations[0] = X
@@ -95,11 +94,16 @@ class Network:
             z = np.dot(self.__activations[i],
                        self.__weights[i]) + self.__biases[i]
 
-            if i == len(self.__activations)-1:
+            if i == len(self.__activations)-2:
+                
+                #print ("Z: %.4f, transfer: %.4f"%(z, self.__output_transfer(z)))
+                
                 self.__activations[i+1] = self.__output_transfer(z)
 
             else:
                 self.__activations[i+1] = self.__transfer(z)
+        
+        #print ("Output: ", self.__activations[-1])
 
         return self.__activations[-1]
 
@@ -145,3 +149,176 @@ class Network:
 
             self.__biases[i] += bias_update
             self.__weights[i] += weight_update
+
+    def train_test(
+        self, X, y, mode = "classify", 
+        test_split = 0.2, learning_rate=None, 
+        train_indices=None, test_indices=None, progress=None
+    ):
+        """
+        progress is a callback function that will be invoked with: 
+            progress(b:int, tsize:int)
+        """
+
+        # TODO: implement some sort of accuracy function for regression 
+
+        if not train_indices and not test_indices:
+            
+            idx = np.arange(len(X))    
+            np.random.shuffle(idx)
+            test_indices = idx[:int(test_split*len(X))]
+            train_indices = idx[int(test_split*len(X)):]
+        
+        # training phase
+        correct = 0
+        
+        for i in range(len(train_indices)):
+
+            output = self.forward_pass(X[train_indices[i]])
+            expected = y[train_indices[i]]
+
+            if mode == "classify":
+                correct += int(np.argmax(output) == np.argmax(expected))
+
+            if learning_rate == "step":
+                step_size = int(len(train_indices)/20)
+                if not i % step_size and i > 0: 
+                    self.learning_rate = self.learning_rate/2
+            
+            self.backward_pass(
+                network_input = X[train_indices[i]],
+                network_output = output,
+                expected_output = expected
+            )
+            if progress: 
+                progress(b=i, tsize=len(train_indices))
+        
+        training_accuracy = correct/len(train_indices)
+        
+        # testing phase
+        correct = 0  
+        for i in range(len(test_indices)):
+        
+            output = self.forward_pass(X[train_indices[i]])
+            expected = y[train_indices[i]]
+
+            if mode == "classify":
+                correct += int(np.argmax(output) == np.argmax(expected))
+            
+            if progress: 
+                progress(b=i, tsize=len(test_indices    ))
+            
+            #print ("NN output: ", output)
+            
+            #print ("NN output: %i; Expected: %i" %(np.argmax(output), np.argmax(expected)))
+
+        testing_accuracy = correct/len(test_indices)
+    
+        return training_accuracy, testing_accuracy
+    
+    def train_test_minibatch(
+        self, X, y, mode="classify", 
+        learning_rate=None, test_split=0.2, 
+        batch_size=32, epochs=100, progress=None
+    ):
+        """
+        progress is a callback function that will be invoked with: 
+            progress(current:int, total:int)
+        """
+
+        idx = np.arange(len(X))    
+        np.random.shuffle(idx)
+        test_indices = idx[:int(test_split*len(X))]
+        train_indices = idx[int(test_split*len(X)):]
+
+        # training phase
+
+        num_batches = int(len(train_indices)/batch_size)
+        
+        train_accuracies = []
+        test_accuracies = []
+        
+        for epoch in range(epochs):
+            
+            back_prop_inputs = []
+            correct = 0
+            for i in range(len(train_indices)):
+                network_input = X[train_indices[i]]
+                output = self.forward_pass(network_input)
+                expected = y[train_indices[i]]
+                
+                if mode == "classify":
+                    correct += int(np.argmax(output) == np.argmax(expected))
+                
+                back_prop_inputs.append({
+                    'network_input': network_input,    
+                    'network_output': output,
+                    'expected_output': expected
+                })
+                
+                if not i % batch_size: 
+                    for bp_input in back_prop_inputs:
+                        self.backward_pass(**bp_input)
+                    back_prop_inputs = []
+            
+            train_accuracies.append(correct/len(train_indices))
+            if learning_rate == "step":
+                step_size = int(epochs/20)
+                if not i % step_size and i > 0: 
+                    self.learning_rate = self.learning_rate/2
+            # testing phase        
+            correct = 0  
+            for i in range(len(test_indices)):
+            
+                output = self.forward_pass(X[train_indices[i]])
+                expected = y[train_indices[i]]
+
+                if mode == "classify":
+                    correct += int(np.argmax(output) == np.argmax(expected))
+            
+            #print ("NN output: %.4f --> %i; Expected: %i" %(output, int(output>0.5), expected))
+
+            test_accuracies.append(correct/len(test_indices))
+            
+            if progress:
+                progress(b=epoch, tsize=epochs)
+        
+        return train_accuracies, test_accuracies
+
+    # KFold cross validation for hyper paramter tuning
+    def kfold(self, X,y, k):
+        testing = [] 
+        training = []
+
+        fold_size = int(len(X)/k)
+
+        for i in range(k):
+                    
+            idx = np.arange(len(X))
+            np.random.shuffle(idx)
+            idx = list(idx)
+
+            test_idx = idx[i*fold_size: (i+1)*fold_size]
+            train_idx = idx[:i*fold_size]
+            train_idx.extend(idx[(i+1)*fold_size:])
+            
+            train_acc, test_acc = self.train_test(
+                X,y, 
+                test_indices = test_idx, 
+                train_indices = train_idx
+            )
+            testing.append(test_acc)
+            training.append(train_acc)
+        
+        return np.mean(training), np.mean(testing)
+
+
+if __name__ == "__main__":
+    model_params = {
+        'shape': [11, 8, 6, 1],
+        'activation': 'tanh',
+        'output_activation': 'sigmoid',
+        'learning_rate': 0.001
+    }
+    nn = Network(**model_params)
+

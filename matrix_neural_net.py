@@ -207,11 +207,7 @@ class Network:
             
             if progress: 
                 progress(b=i, tsize=len(test_indices    ))
-            
-            #print ("NN output: ", output)
-            
-            #print ("NN output: %i; Expected: %i" %(np.argmax(output), np.argmax(expected)))
-
+        
         testing_accuracy = correct/len(test_indices)
     
         return training_accuracy, testing_accuracy
@@ -276,8 +272,6 @@ class Network:
                 if mode == "classify":
                     correct += int(np.argmax(output) == np.argmax(expected))
             
-            #print ("NN output: %.4f --> %i; Expected: %i" %(output, int(output>0.5), expected))
-
             test_accuracies.append(correct/len(test_indices))
             
             if progress:

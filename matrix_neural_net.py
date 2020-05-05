@@ -27,11 +27,24 @@ class Network:
         )
     }
 
-    def __init__(self, shape, activation='tanh', output_activation='sigmoid', learning_rate=0.02):
+    def __init__(self, shape, 
+        activation='tanh', 
+        output_activation='sigmoid', 
+        learning_rate=0.02, 
+        loss="mean_square_error"
+    ):
         self.__shape = shape
         self.__weights = []
         self.__activations = []
         self.__biases = []
+        self.__loss = loss
+        
+        if loss == "mean_square_error":
+            # Derivative of the Mean Square Error Loss Function
+            self.error = lambda y, yhat: yhat - y
+        if loss == "cross_entropy":
+            # Derivative fo Cross Entropy Loss Function
+            self.error = lambda y, yhat: (yhat-y)/((1 - y)*y)
 
         for i, layer_length in enumerate(self.__shape):
 
@@ -94,19 +107,21 @@ class Network:
             z = np.dot(self.__activations[i],
                        self.__weights[i]) + self.__biases[i]
 
-            if i == len(self.__activations)-2:
-                
-                #print ("Z: %.4f, transfer: %.4f"%(z, self.__output_transfer(z)))
-                
+            if i == len(self.__activations)-2:                                
                 self.__activations[i+1] = self.__output_transfer(z)
 
             else:
                 self.__activations[i+1] = self.__transfer(z)
         
-        #print ("Output: ", self.__activations[-1])
-
+        if self.__loss == "cross_entropy":
+            return self.softmax(self.__activations[-1])
+        
         return self.__activations[-1]
 
+    def softmax(self, x):
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+    
     def backward_pass(self, network_input, network_output, expected_output):
         if not isinstance(expected_output, np.ndarray):
             expected_output = np.array(expected_output)
@@ -123,8 +138,8 @@ class Network:
                 len(network_input), len(self.__shape[0])
             ))
 
-        # Output error
-        error = expected_output - network_output
+        error = self.error(network_output, expected_output)
+        
         delta = error * self.__output_transfer_derivative(network_output)
 
         for i in reversed(range(0, len(self.__weights))):
@@ -139,13 +154,11 @@ class Network:
             d = delta.reshape(1, len(delta))
 
             weight_update = np.dot(a.T, d) * self.__learning_rate
+            weight_update = weight_update.reshape(self.__weights[i].shape)
 
-            # error/ delta for the next layer of weights and biases
+            # error / delta for the next layer of weights and biases
             error = np.dot(delta, self.__weights[i].T)
             delta = error * self.__transfer_derivative(self.__activations[i])
-
-            # TODO: figure out how to avoid this reshape operation
-            weight_update = weight_update.reshape(self.__weights[i].shape)
 
             self.__biases[i] += bias_update
             self.__weights[i] += weight_update
@@ -157,7 +170,9 @@ class Network:
     ):
         """
         progress is a callback function that will be invoked with: 
-            progress(b:int, tsize:int)
+            progress(b:int, tsize:int) 
+                b: current state of progress (ie: iteration)
+                tsize: final state of progress (ie: total)
         """
 
         # TODO: implement some sort of accuracy function for regression 
@@ -172,13 +187,16 @@ class Network:
         # training phase
         correct = 0
         
-        for i in range(len(train_indices)):
-
-            output = self.forward_pass(X[train_indices[i]])
-            expected = y[train_indices[i]]
+        for i, tr_index in enumerate(train_indices):
+            network_input = X[tr_index]
+            output = self.forward_pass(network_input)
+            expected = y[tr_index]
 
             if mode == "classify":
                 correct += int(np.argmax(output) == np.argmax(expected))
+            
+            # TODO: implement a scoring function for regression ()
+            # TODO: return loss function
 
             if learning_rate == "step":
                 step_size = int(len(train_indices)/20)
@@ -186,7 +204,7 @@ class Network:
                     self.learning_rate = self.learning_rate/2
             
             self.backward_pass(
-                network_input = X[train_indices[i]],
+                network_input = network_input,
                 network_output = output,
                 expected_output = expected
             )
@@ -197,21 +215,21 @@ class Network:
         
         # testing phase
         correct = 0  
-        for i in range(len(test_indices)):
+        for _ , te_index in enumerate(test_indices):
         
-            output = self.forward_pass(X[train_indices[i]])
-            expected = y[train_indices[i]]
+            output = self.forward_pass(X[te_index])
+            expected = y[te_index]
 
             if mode == "classify":
                 correct += int(np.argmax(output) == np.argmax(expected))
             
             if progress: 
-                progress(b=i, tsize=len(test_indices    ))
+                progress(b=i, tsize=len(test_indices))
         
         testing_accuracy = correct/len(test_indices)
     
         return training_accuracy, testing_accuracy
-    
+
     def train_test_minibatch(
         self, X, y, mode="classify", 
         learning_rate=None, test_split=0.2, 
@@ -222,26 +240,25 @@ class Network:
             progress(current:int, total:int)
         """
 
-        idx = np.arange(len(X))    
-        np.random.shuffle(idx)
-        test_indices = idx[:int(test_split*len(X))]
-        train_indices = idx[int(test_split*len(X)):]
-
         # training phase
-
-        num_batches = int(len(train_indices)/batch_size)
         
         train_accuracies = []
         test_accuracies = []
         
         for epoch in range(epochs):
             
+            idx = np.arange(len(X))    
+            np.random.shuffle(idx)
+            test_indices = idx[:int(test_split*len(X))]
+            train_indices = idx[int(test_split*len(X)):]
+            
             back_prop_inputs = []
             correct = 0
-            for i in range(len(train_indices)):
-                network_input = X[train_indices[i]]
+            for i, tr_index in enumerate(train_indices):
+                
+                network_input = X[tr_index]
                 output = self.forward_pass(network_input)
-                expected = y[train_indices[i]]
+                expected = y[tr_index]
                 
                 if mode == "classify":
                     correct += int(np.argmax(output) == np.argmax(expected))
@@ -258,22 +275,25 @@ class Network:
                     back_prop_inputs = []
             
             train_accuracies.append(correct/len(train_indices))
+            
             if learning_rate == "step":
                 step_size = int(epochs/20)
                 if not i % step_size and i > 0: 
                     self.learning_rate = self.learning_rate/2
+            
             # testing phase        
             correct = 0  
-            for i in range(len(test_indices)):
+            for _, te_index in enumerate(test_indices):
             
-                output = self.forward_pass(X[train_indices[i]])
-                expected = y[train_indices[i]]
+                output = self.forward_pass(X[te_index])
+                expected = y[te_index]
 
                 if mode == "classify":
                     correct += int(np.argmax(output) == np.argmax(expected))
             
             test_accuracies.append(correct/len(test_indices))
             
+            # update progress after each epoch
             if progress:
                 progress(b=epoch, tsize=epochs)
         

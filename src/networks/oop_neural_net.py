@@ -8,7 +8,7 @@ class NeuralNetwork:
         activation: str = "tanh",
         output_activation: str = "sigmoid",
         learning_rate: float = 0.02,
-        loss="mean_square_error",
+        loss="mean_squared_error",
     ):
 
         # Publicly accessible attribute in order to be able to
@@ -109,12 +109,12 @@ class Neuron:
         ),
     }
     ERROR = {
-        "mean_square_error": lambda y, yhat: yhat - y,
+        "mean_squared_error": lambda y, yhat: yhat - y,
         "cross_entropy": lambda y, yhat: (yhat - y) / ((1 - y) * y),
     }
 
     def __init__(
-        self, learning_rate=0.02, activation_function="tanh", loss="mean_square_error"
+        self, learning_rate=0.02, activation_function="tanh", loss="mean_squared_error"
     ):
 
         self.__synapses_in = []

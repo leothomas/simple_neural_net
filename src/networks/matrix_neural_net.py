@@ -13,7 +13,7 @@ class NeuralNetwork:
         ),
     }
     ERROR = {
-        "mean_square_error": lambda y, yhat: yhat - y,
+        "mean_squared_error": lambda y, yhat: yhat - y,
         "cross_entropy": lambda y, yhat: (yhat - y) / ((1 - y) * y),
     }
 
@@ -22,26 +22,21 @@ class NeuralNetwork:
         shape,
         activation="tanh",
         output_activation="sigmoid",
-        learning_rate=0.02,
-        loss="mean_square_error",
+        learning_rate=0.1,
+        loss="mean_squared_error",
     ):
-        self.__shape = shape
+        self.__prev_error = None
+        self.__crt_error = None
+
         self.__weights = []
         self.__activations = []
         self.__biases = []
+
+        self.__shape = shape
+        self.__learning_rate = learning_rate
+
         self.__loss = loss
-
         self.__error_function = self.ERROR.get(loss)
-
-        self.__activations = [np.zeros(layer_length) for layer_length in self.__shape]
-        self.__biases = [
-            np.random.randn(layer_length) * 0.5 for layer_length in self.__shape[1:]
-        ]
-        self.__weights = [
-            np.random.randn(self.__shape[i - 1], layer_length) * 0.5
-            for i, layer_length in enumerate(self.__shape)
-            if i > 0
-        ]
 
         self.__transfer, self.__transfer_derivative = self.ACTIVATIONS[activation]
 
@@ -49,7 +44,15 @@ class NeuralNetwork:
             output_activation
         ]
 
-        self.__learning_rate = learning_rate
+        self.__activations = [np.zeros(layer_length) for layer_length in self.__shape]
+        self.__biases = [
+            np.random.randn(layer_length) for layer_length in self.__shape[1:]
+        ]
+        self.__weights = [
+            np.random.randn(self.__shape[i - 1], layer_length)
+            for i, layer_length in enumerate(self.__shape)
+            if i > 0
+        ]
 
     @property
     def weights(self):
@@ -128,6 +131,18 @@ class NeuralNetwork:
 
         error = self.__error_function(network_output, expected_output)
 
+        # if not self.__prev_error:
+        #     self.__prev_error = error
+        # if not self.__crt_error:
+        #     self.__crt_error = error
+
+        # if 1 < self.__prev_error / self.__crt_error < 2:
+        #     print("Prev error: ", self.__prev_error)
+        #     print("Current error: ", self.__crt_error)
+        #     print("Previous learning rate: ", self.learning_rate)
+        #     print("New learning rate: "), self.learning_rate / 2
+        #     self.learning_rate = self.learning_rate / 2
+
         delta = error * self.__output_transfer_derivative(network_output)
 
         for i in reversed(range(0, len(self.__weights))):
@@ -150,3 +165,6 @@ class NeuralNetwork:
 
             self.__biases[i] += bias_update
             self.__weights[i] += weight_update
+
+        # self.__prev_error = self.__crt_error
+        # self.__crt_error = None

@@ -112,7 +112,12 @@ class NetworkManager:
 
         fscore = self.calculate_fscore(np.mean(precision), np.mean(recall), beta=1)
 
-        return precision, recall, accuracy, fscore
+        return {
+            "precision": precision,
+            "recall": recall,
+            "accuracy": accuracy,
+            "fscore": fscore,
+        }
 
     def mean_squared_error(self, y, yhat):
         return (1 / len(y)) * sum((yhat - y) ** 2)
@@ -124,24 +129,30 @@ class NetworkManager:
     def score_regression(self, results: List[Tuple]):
         y = np.array([r[0] for r in results])
         yhat = np.array([r[1] for r in results])
-        return self.mean_squared_error(y, yhat), self.r_squared(y, yhat)
+        return {
+            "mean_squared_error": self.mean_squared_error(y, yhat),
+            "r2": self.r_squared(y, yhat),
+        }
 
     # KFold cross validation for hyper paramter tuning
-    def kfold(self, X, y, k, mode="classify", progress=None):
+    def kfold(self, X, y, k, split=0.2, mode="classify", progress=None):
         testing = []
         training = []
 
-        fold_size = int(len(X) / k)
+        fold_size = int(len(X) * split)
+        if int(len(X) / k) < fold_size:
+            fold_size = int(len(X) / k)
+
+        idx = np.arange(len(X))
+        np.random.shuffle(idx)
+        idx = list(idx)
 
         for i in range(k):
-
-            idx = np.arange(len(X))
-            np.random.shuffle(idx)
-            idx = list(idx)
 
             test_idx = idx[i * fold_size : (i + 1) * fold_size]
             train_idx = idx[: i * fold_size]
             train_idx.extend(idx[(i + 1) * fold_size :])
+
             train_score, test_score = self.train_test(
                 X,
                 y,
@@ -242,15 +253,15 @@ if __name__ == "__main__":
     model_params = {
         "shape": [1, 10, 25, 1],
         "activation": "tanh",
-        "output_activation": "linear",
-        "learning_rate": 0.02,
-        # "loss": "cross_entropy",
+        "output_activation": "tanh",
+        "learning_rate": 0.05,
+        "loss": "mean_squared_error",
     }
     oop_nn = OOPNeuralNetwork(**model_params)
     manager = NetworkManager(oop_nn)
 
-    X = np.random.uniform(0, 1.0, 5000)
-    y = np.sin(2 * 2 * np.pi * X) + 1
+    X = np.random.uniform(0, 1.0, 1000)
+    y = np.sin(2 * 2 * np.pi * X)
 
     # input layer expects a list (even if it's just one element)
     X = [[i] for i in X]
@@ -266,7 +277,7 @@ if __name__ == "__main__":
 
     with TqdmUpTo(desc="Training Matrix Neural Network against SIN(x) function") as t:
         train_matrix, test_matrix = manager.kfold(
-            X, y, 50, mode="regress", progress=t.update_to
+            X, y, 10, mode="regress", progress=t.update_to
         )
 
     fig, axs = plt.subplots(2, 2)
@@ -274,29 +285,37 @@ if __name__ == "__main__":
         "MSE in OOP Neural Network",
         fontsize=6,
     )
-    axs[0, 0].plot([r[0] for r in train_oop], "tab:orange", label="Training")
-    axs[0, 0].plot([r[0] for r in test_oop], "tab:blue", label="Testing")
+    axs[0, 0].plot(
+        [r["mean_squared_error"] for r in train_oop], "tab:orange", label="Training"
+    )
+    axs[0, 0].plot(
+        [r["mean_squared_error"] for r in test_oop], "tab:blue", label="Testing"
+    )
     axs[0, 0].legend()
     axs[0, 1].set_title(
         "R2 in OOP Neural Network",
         fontsize=6,
     )
-    axs[0, 1].plot([r[1] for r in train_oop], "tab:orange", label="Training")
-    axs[0, 1].plot([r[1] for r in test_oop], "tab:blue", label="Testing")
+    axs[0, 1].plot([r["r2"] for r in train_oop], "tab:orange", label="Training")
+    axs[0, 1].plot([r["r2"] for r in test_oop], "tab:blue", label="Testing")
     axs[0, 1].legend()
     axs[1, 0].set_title(
         "MSE in Matrix Neural Network",
         fontsize=6,
     )
-    axs[1, 0].plot([r[0] for r in train_matrix], "tab:orange", label="Training")
-    axs[1, 0].plot([r[0] for r in test_matrix], "tab:blue", label="Testing")
+    axs[1, 0].plot(
+        [r["mean_squared_error"] for r in train_matrix], "tab:orange", label="Training"
+    )
+    axs[1, 0].plot(
+        [r["mean_squared_error"] for r in test_matrix], "tab:blue", label="Testing"
+    )
     axs[1, 0].legend()
     axs[1, 1].set_title(
         "R2 in Matrix Neural Network",
         fontsize=6,
     )
-    axs[1, 1].plot([r[1] for r in train_matrix], "tab:orange", label="Training")
-    axs[1, 1].plot([r[1] for r in test_matrix], "tab:blue", label="Testing")
+    axs[1, 1].plot([r["r2"] for r in train_matrix], "tab:orange", label="Training")
+    axs[1, 1].plot([r["r2"] for r in test_matrix], "tab:blue", label="Testing")
     axs[1, 1].legend()
 
     for ax in axs.flat:
@@ -307,67 +326,9 @@ if __name__ == "__main__":
     # visual = input("View sample predictions? (y/n)\n")
     # if visual == "y":
     X = np.arange(0, 1, 0.001)
-    yhat = np.sin(2 * 2 * np.pi * X) + 1
-
+    yhat = np.sin(2 * 2 * np.pi * X)
     y = [matrix_nn.forward_pass([x]) for x in X]
 
     plt.plot(X, yhat, "tab:gray")
     plt.scatter(X, [i[0] for i in y], c="r")
     plt.show()
-
-
-# def train_test_sin(
-#     network,
-#     num_passes=500,
-#     ratio=0.1,
-#     target_function=target_function,
-#     previous_error=None,
-# ):
-#     bar = Bar("Training", max=num_passes)
-
-#     # training step
-#     for _ in range(num_passes):
-#         # generate a random value within the input range
-#         x = np.random.uniform(0, 1.0)
-
-#         # pass through the network (lne function only takes one input)
-#         o = network.forward_pass([x])
-
-#         # calculate the expected output value
-#         y = target_function(x)
-
-#         # backpropgate the expected value through the network
-#         network.backward_pass(network_input=[x], network_output=o, expected_output=[y])
-
-#         bar.next()
-#     bar.finish()
-
-#     # testing step
-
-#     error = 0.0
-#     inputs = []
-#     actual_outputs = []
-
-#     for _ in range(int(num_passes * ratio)):
-#         # generate random value within input range
-#         x = np.random.uniform(0, 1.0)
-
-#         # pass through the network
-#         output = network.forward_pass([x])
-#         # store input value for testing purposes
-#         inputs.append(x)
-#         # store output value for graphing purposes
-#         actual_outputs.append(output)
-
-#         expected_output = target_function(x)
-
-#         # added squared difference between the expected and the actual
-#         # to calculate loss function
-#         error += np.sqrt((output - expected_output) ** 2)
-
-#     # if previous_error and np.abs(error-previous_error)/previous_error < 0.1:
-#     #    network.learning_rate += 0.05
-
-#     print("Error:%.4f " % error)
-#     # return inputs and output from testing phase for graphing
-#     return error, inputs, actual_outputs

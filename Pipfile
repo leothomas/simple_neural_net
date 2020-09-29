@@ -9,6 +9,7 @@ black = "*"
 flake8 = "*"
 tqdm = "*"
 matplotlib = "*"
+jupyter = "*"
 
 [packages]
 

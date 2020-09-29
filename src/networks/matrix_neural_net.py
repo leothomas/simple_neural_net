@@ -13,8 +13,8 @@ class NeuralNetwork:
         ),
     }
     ERROR = {
-        "mean_squared_error": lambda y, yhat: yhat - y,
-        "cross_entropy": lambda y, yhat: (yhat - y) / ((1 - y) * y),
+        "mean_squared_error": lambda y, yhat: y - yhat,
+        "cross_entropy": lambda y, yhat: (y - yhat) / ((1 - yhat) * yhat),
     }
 
     def __init__(
@@ -129,7 +129,7 @@ class NeuralNetwork:
                 % (len(network_input), len(self.__shape[0]))
             )
 
-        error = self.__error_function(network_output, expected_output)
+        error = self.__error_function(expected_output, network_output)
 
         # if not self.__prev_error:
         #     self.__prev_error = error

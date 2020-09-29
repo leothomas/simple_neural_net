@@ -109,8 +109,8 @@ class Neuron:
         ),
     }
     ERROR = {
-        "mean_squared_error": lambda y, yhat: yhat - y,
-        "cross_entropy": lambda y, yhat: (yhat - y) / ((1 - y) * y),
+        "mean_squared_error": lambda y, yhat: y - yhat,
+        "cross_entropy": lambda y, yhat: (y - yhat) / ((1 - yhat) * yhat),
     }
 
     def __init__(
@@ -171,7 +171,7 @@ class Neuron:
     def calculate_error(self, expected=None):
 
         if expected:
-            self.__error = self.__error_function(self.output, expected)
+            self.__error = self.__error_function(expected, self.output)
         else:
 
             self.__error = np.sum(

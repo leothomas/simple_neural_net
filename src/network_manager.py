@@ -63,7 +63,10 @@ class NetworkManager:
             output = self.network.forward_pass(network_input)
             expected = y[tr_index]
 
-            training.append((output, expected))
+            if mode == "classify":
+                training.append((np.argmax(expected), np.argmax(output)))
+            else:
+                training.append((expected[0], output[0]))
 
             if learning_rate == "step":
                 step_size = int(len(train_indices) / 20)
@@ -84,7 +87,11 @@ class NetworkManager:
 
             output = self.network.forward_pass(X[te_index])
             expected = y[te_index]
-            testing.append((output, expected))
+
+            if mode == "classify":
+                testing.append((np.argmax(expected), np.argmax(output)))
+            else:
+                testing.append((expected[0], output[0]))
 
             if progress:
                 progress(b=i, tsize=len(test_indices))
@@ -92,21 +99,21 @@ class NetworkManager:
         return self.score(training), self.score(testing)
 
     def calculate_fscore(self, precision: float, recall: float, beta: int = 1):
-        return (1 + beta ** 2)(precision * recall) / ((beta ** 2 * precision) + recall)
+        return (
+            (1 + beta ** 2) * (precision * recall) / ((beta ** 2 * precision) + recall)
+        )
 
     def score_classification(self, results: List[Tuple]):
-
         max_val = max(list(sum(results, ())))
+
         confusion = np.zeros((max_val, max_val))
-        for r in results:
-            confusion[r] += 1
+        for i, j in results:
+            confusion[(i - 1, j - 1)] += 1
 
-        precision = [
-            confusion[(i, i)] / sum(confusion[i, :]) for i in range(len(max_val))
-        ]
-        recall = [confusion[(i, i)] / sum(confusion[:, i]) for i in range(len(max_val))]
+        precision = [confusion[(i, i)] / sum(confusion[i, :]) for i in range(max_val)]
+        recall = [confusion[(i, i)] / sum(confusion[:, i]) for i in range(max_val)]
 
-        accuracy = sum(int(actual == expected) for actual, expected in results) / len(
+        accuracy = sum(int(actual == expected) for expected, actual in results) / len(
             results
         )
 
@@ -120,11 +127,11 @@ class NetworkManager:
         }
 
     def mean_squared_error(self, y, yhat):
-        return (1 / len(y)) * sum((yhat - y) ** 2)
+        return (1 / len(y)) * sum((y - yhat) ** 2)
 
     def r_squared(self, y, yhat):
-        ybar = (1 / len(y)) * sum(yhat)
-        return 1 - ((sum((yhat - y) ** 2) / sum((yhat - ybar) ** 2)))
+        ybar = sum(y) / len(y)
+        return 1 - ((sum((y - yhat) ** 2) / sum((y - ybar) ** 2)))
 
     def score_regression(self, results: List[Tuple]):
         y = np.array([r[0] for r in results])
@@ -260,24 +267,24 @@ if __name__ == "__main__":
     oop_nn = OOPNeuralNetwork(**model_params)
     manager = NetworkManager(oop_nn)
 
-    X = np.random.uniform(0, 1.0, 1000)
+    X = np.random.uniform(0, 1.0, 5000)
     y = np.sin(2 * 2 * np.pi * X)
 
     # input layer expects a list (even if it's just one element)
     X = [[i] for i in X]
     y = [[i] for i in y]
 
-    with TqdmUpTo(desc="Training OOP Neural Network against SIN(x) function") as t:
-        train_oop, test_oop = manager.kfold(
-            X, y, 50, mode="regress", progress=t.update_to
-        )
+    # with TqdmUpTo(desc="Training OOP Neural Network against SIN(x) function") as t:
+    #     train_oop, test_oop = manager.kfold(
+    #         X, y, 50, mode="regress", progress=t.update_to
+    #     )
 
     matrix_nn = MatrixNeuralNetwork(**model_params)
     manager = NetworkManager(matrix_nn)
 
     with TqdmUpTo(desc="Training Matrix Neural Network against SIN(x) function") as t:
         train_matrix, test_matrix = manager.kfold(
-            X, y, 10, mode="regress", progress=t.update_to
+            X, y, 20, mode="regress", progress=t.update_to
         )
 
     fig, axs = plt.subplots(2, 2)
@@ -285,19 +292,19 @@ if __name__ == "__main__":
         "MSE in OOP Neural Network",
         fontsize=6,
     )
-    axs[0, 0].plot(
-        [r["mean_squared_error"] for r in train_oop], "tab:orange", label="Training"
-    )
-    axs[0, 0].plot(
-        [r["mean_squared_error"] for r in test_oop], "tab:blue", label="Testing"
-    )
-    axs[0, 0].legend()
-    axs[0, 1].set_title(
-        "R2 in OOP Neural Network",
-        fontsize=6,
-    )
-    axs[0, 1].plot([r["r2"] for r in train_oop], "tab:orange", label="Training")
-    axs[0, 1].plot([r["r2"] for r in test_oop], "tab:blue", label="Testing")
+    # axs[0, 0].plot(
+    #     [r["mean_squared_error"] for r in train_oop], "tab:orange", label="Training"
+    # )
+    # axs[0, 0].plot(
+    #     [r["mean_squared_error"] for r in test_oop], "tab:blue", label="Testing"
+    # )
+    # axs[0, 0].legend()
+    # axs[0, 1].set_title(
+    #     "R2 in OOP Neural Network",
+    #     fontsize=6,
+    # )
+    # axs[0, 1].plot([r["r2"] for r in train_oop], "tab:orange", label="Training")
+    # axs[0, 1].plot([r["r2"] for r in test_oop], "tab:blue", label="Testing")
     axs[0, 1].legend()
     axs[1, 0].set_title(
         "MSE in Matrix Neural Network",
